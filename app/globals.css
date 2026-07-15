@@ -170,6 +170,12 @@ h1 {
   padding: 12px 14px;
 }
 
+.error-box.neutral {
+  background: rgba(92, 162, 216, 0.12);
+  border-color: rgba(92, 162, 216, 0.55);
+  color: #d7ecff;
+}
+
 .verdict-panel {
   align-content: end;
   background: rgba(18, 26, 37, 0.92);
@@ -178,6 +184,44 @@ h1 {
   display: grid;
   gap: 12px;
   padding: 24px;
+}
+
+.auth-panel {
+  align-content: start;
+  background: rgba(18, 26, 37, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.auth-panel input {
+  background: #090f17;
+  border: 1px solid #35506a;
+  border-radius: 7px;
+  color: var(--foreground);
+  min-height: 42px;
+  padding: 10px 11px;
+}
+
+.auth-panel span {
+  color: #b8c8d6;
+  line-height: 1.45;
+}
+
+.tab-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.tab-row button {
+  background: transparent;
+}
+
+.tab-row button.active {
+  background: #23435e;
 }
 
 .verdict-panel strong {
@@ -313,6 +357,10 @@ small,
   display: grid;
   gap: 18px;
   grid-template-columns: minmax(300px, 0.86fr) minmax(0, 1.14fr);
+}
+
+.leaderboard {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
 }
 
 .control-panel,
@@ -514,6 +562,109 @@ button:hover {
   font-size: 13px;
 }
 
+.admin-strip {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-strip div {
+  background: rgba(18, 26, 37, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+}
+
+.admin-strip span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-strip strong {
+  font-size: 28px;
+}
+
+.game-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.game-row {
+  align-items: center;
+  background: #0d141e;
+  border: 1px solid #263649;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 34px 96px minmax(0, 1fr) 160px 130px;
+  min-height: 72px;
+  padding: 9px;
+  text-align: left;
+}
+
+.game-row.selected,
+.game-row:hover {
+  border-color: #4c779c;
+}
+
+.game-row img {
+  border-radius: 5px;
+  height: 45px;
+  object-fit: cover;
+  width: 96px;
+}
+
+.game-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-row small {
+  margin: 0;
+}
+
+.game-row em {
+  border-radius: 999px;
+  color: #101723;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+  padding: 7px 9px;
+  text-align: center;
+}
+
+.game-row em.ok {
+  background: var(--green);
+}
+
+.game-row em.watch,
+.game-row em.warn {
+  background: var(--amber);
+}
+
+.game-row em.danger {
+  background: var(--red);
+}
+
+.mini-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mini-signals span {
+  background: #0d141e;
+  border: 1px solid #2f445a;
+  border-radius: 999px;
+  color: #d4e5f3;
+  font-size: 12px;
+  padding: 7px 9px;
+}
+
 .business-grid {
   display: grid;
   gap: 18px;
@@ -557,6 +708,39 @@ button:hover {
   line-height: 1.45;
   margin: 16px 0 0;
   padding-left: 18px;
+}
+
+.pricing-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.price-card {
+  background: rgba(18, 26, 37, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+}
+
+.price-card.featured {
+  border-color: rgba(98, 197, 138, 0.65);
+  box-shadow: 0 0 0 1px rgba(98, 197, 138, 0.15);
+}
+
+.price-card h2 {
+  font-size: 36px;
+}
+
+.price-card p {
+  color: #b8c8d6;
+  line-height: 1.5;
+}
+
+.single-column {
+  grid-template-columns: 1fr;
 }
 
 .empty-state {
@@ -670,7 +854,9 @@ input[type="range"] {
   .workspace,
   .business-grid,
   .funnel-steps,
-  .game-summary {
+  .game-summary,
+  .pricing-grid,
+  .admin-strip {
     grid-template-columns: 1fr;
   }
 
@@ -693,12 +879,14 @@ input[type="range"] {
   }
 
   .hero-copy,
+  .auth-panel,
   .control-panel,
   .report-card,
   .pro-card,
   .watchlist-card,
   .calculator-card,
-  .funnel {
+  .funnel,
+  .price-card {
     padding: 18px;
   }
 
@@ -706,8 +894,22 @@ input[type="range"] {
   .revenue-box,
   .quick-actions,
   .search-row,
-  .fact-grid {
+  .fact-grid,
+  .tab-row {
     grid-template-columns: 1fr;
+  }
+
+  .game-row {
+    grid-template-columns: 28px 74px minmax(0, 1fr);
+  }
+
+  .game-row img {
+    width: 74px;
+  }
+
+  .game-row small,
+  .game-row em {
+    grid-column: 3;
   }
 
   .score-row {

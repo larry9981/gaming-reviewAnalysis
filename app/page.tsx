@@ -1,18 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+type User = {
+  id: string;
+  email: string;
+  role: string;
+};
+
+type TopGame = {
+  appId: string;
+  name: string;
+  image?: string;
+  price: string;
+  reviewSummary: string;
+  riskScore: number;
+  verdict: string;
+  tone: "danger" | "warn" | "watch" | "ok";
+  topSignals: string[];
+  redditAvailable: boolean;
+  steamUrl: string;
+};
 
 type AnalysisResult = {
   appId: string;
   game: {
     name: string;
     image?: string;
-    developers: string[];
-    publishers: string[];
     price: string;
-    discount: number;
-    releaseDate: string;
-    comingSoon: boolean;
     metacritic: number | null;
     recommendations: number | null;
     steamUrl: string;
@@ -28,7 +43,6 @@ type AnalysisResult = {
     label: string;
     detail: string;
     source: string;
-    weight: number;
   }[];
   reviewSummary: {
     description: string;
@@ -36,10 +50,7 @@ type AnalysisResult = {
     negative: number;
     total: number;
   } | null;
-  topComplaints: {
-    label: string;
-    count: number;
-  }[];
+  topComplaints: { label: string; count: number }[];
   steamReviews: string[];
   reddit: {
     posts: {
@@ -52,289 +63,432 @@ type AnalysisResult = {
     error: string | null;
     searchUrl: string;
   };
-  limitations: string[];
 };
 
-const examples = [
-  {
-    label: "Baldur's Gate 3",
-    value: "https://store.steampowered.com/app/1086940/Baldurs_Gate_3/",
-  },
-  {
-    label: "No Man's Sky",
-    value: "https://store.steampowered.com/app/275850/No_Mans_Sky/",
-  },
-  {
-    label: "Cyberpunk 2077",
-    value: "https://store.steampowered.com/app/1091500/Cyberpunk_2077/",
-  },
-];
+type Paywall = {
+  appId: string;
+  plans: { id: "single" | "monthly"; label: string; price: string; appId?: string }[];
+};
 
-function formatNumber(value: number | null | undefined) {
+function formatNumber(value?: number | null) {
   return typeof value === "number" ? value.toLocaleString("en-US") : "Unknown";
 }
 
 export default function Home() {
-  const [input, setInput] = useState(examples[0].value);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [games, setGames] = useState<TopGame[]>([]);
+  const [gamesError, setGamesError] = useState("");
+  const [loadingGames, setLoadingGames] = useState(true);
+  const [input, setInput] = useState("");
+  const [selected, setSelected] = useState<TopGame | null>(null);
+  const [report, setReport] = useState<AnalysisResult | null>(null);
+  const [paywall, setPaywall] = useState<Paywall | null>(null);
+  const [message, setMessage] = useState("");
+  const [user, setUser] = useState<User | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "register">("register");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [admin, setAdmin] = useState<{ users: number; activeEntitlements: number } | null>(null);
 
-  async function analyzeGame() {
-    setLoading(true);
-    setError("");
+  const highlighted = useMemo(() => selected || games[0] || null, [games, selected]);
+
+  async function loadMe() {
+    const response = await fetch("/api/me");
+    const data = await response.json();
+    setUser(data.user || null);
+  }
+
+  async function loadTrending() {
+    setLoadingGames(true);
+    setGamesError("");
     try {
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input }),
-      });
+      const response = await fetch("/api/trending");
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Analysis failed.");
-      }
-      setResult(data);
-    } catch (caught) {
-      setResult(null);
-      setError(caught instanceof Error ? caught.message : "Analysis failed.");
+      if (!response.ok) throw new Error(data.error || "Could not load top games.");
+      setGames(data.games || []);
+      setSelected(data.games?.[0] || null);
+    } catch (error) {
+      setGamesError(error instanceof Error ? error.message : "Could not load top games.");
     } finally {
-      setLoading(false);
+      setLoadingGames(false);
     }
   }
 
-  const activeTone = result?.verdict.tone || "watch";
+  async function verifyCheckout(sessionId: string) {
+    const response = await fetch("/api/checkout/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    });
+    const data = await response.json();
+    if (response.ok) {
+      setMessage("Payment confirmed. Your full reports are unlocked.");
+      await loadMe();
+    } else {
+      setMessage(data.error || "Checkout confirmation is still pending.");
+    }
+  }
+
+  async function verifyPayPal(params: URLSearchParams) {
+    const orderId = params.get("token");
+    const subscriptionId = params.get("subscription_id") || params.get("ba_token");
+    const response = await fetch("/api/paypal/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, subscriptionId }),
+    });
+    const data = await response.json();
+    if (response.ok) {
+      setMessage("PayPal payment confirmed. Your full reports are unlocked.");
+      await loadMe();
+    } else {
+      setMessage(data.error || "PayPal confirmation is still pending.");
+    }
+  }
+
+  useEffect(() => {
+    loadMe();
+    loadTrending();
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    if (params.get("checkout") === "success" && sessionId) {
+      verifyCheckout(sessionId);
+      window.history.replaceState({}, "", "/");
+    }
+    if (params.get("checkout") === "cancelled") {
+      setMessage("Checkout cancelled. No charge was made.");
+      window.history.replaceState({}, "", "/");
+    }
+    if (params.get("paypal") === "success" || params.get("paypal_subscription") === "success") {
+      verifyPayPal(params);
+      window.history.replaceState({}, "", "/");
+    }
+    if (params.get("paypal") === "cancelled") {
+      setMessage("PayPal checkout cancelled. No charge was made.");
+      window.history.replaceState({}, "", "/");
+    }
+  }, []);
+
+  async function auth() {
+    setMessage("");
+    const response = await fetch(`/api/auth/${authMode}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setMessage(data.error || "Authentication failed.");
+      return;
+    }
+    setUser(data.user);
+    setPassword("");
+    setMessage("You are signed in.");
+  }
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
+    setAdmin(null);
+    setMessage("Signed out.");
+  }
+
+  async function openReport(appId = input || selected?.appId || "") {
+    const clean = appId.trim();
+    if (!clean) return;
+    setMessage("");
+    setReport(null);
+    setPaywall(null);
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input: clean }),
+    });
+    const data = await response.json();
+    if (response.status === 402) {
+      setPaywall(data);
+      setMessage("Full report is locked. Choose a plan to continue.");
+      return;
+    }
+    if (!response.ok) {
+      setMessage(data.error || "Report failed.");
+      return;
+    }
+    setReport(data);
+  }
+
+  async function checkout(plan: "single" | "monthly", appId?: string, provider: "stripe" | "paypal" = "stripe") {
+    if (!user) {
+      setMessage("Create an account or log in before checkout.");
+      return;
+    }
+    const response = await fetch(provider === "paypal" ? "/api/paypal/checkout" : "/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan, appId: appId || selected?.appId || paywall?.appId }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setMessage(data.error || "Checkout could not start.");
+      return;
+    }
+    window.location.href = data.checkoutUrl;
+  }
+
+  async function loadAdmin() {
+    const response = await fetch("/api/admin");
+    const data = await response.json();
+    if (!response.ok) {
+      setMessage(data.error || "Admin unavailable.");
+      return;
+    }
+    setAdmin(data);
+  }
 
   return (
     <main className="app-shell">
       <section className="hero-band product-hero">
         <div className="hero-copy">
           <p className="eyebrow">Steam Guardrail</p>
-          <h1>Know if a game is worth buying before you pay.</h1>
+          <h1>Top Steam games, ranked by purchase risk.</h1>
           <p className="subcopy">
-            Paste a Steam store link. We scan public Steam data, recent player reviews,
-            and Reddit discussion signals, then turn the noise into a clear buy-or-wait verdict.
+            We automatically scan the top 30 Steam games, summarize public review signals, and lock full game reports behind
+            real paid checkout: $19.90 once or $12.99/month.
           </p>
           <div className="search-box">
-            <label htmlFor="steam-input">Steam URL or App ID</label>
+            <label htmlFor="steam-input">Analyze any Steam URL or App ID</label>
             <div className="search-row">
               <input
                 id="steam-input"
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                placeholder="https://store.steampowered.com/app/1086940/..."
+                placeholder="https://store.steampowered.com/app/..."
               />
-              <button type="button" onClick={analyzeGame} disabled={loading}>
-                {loading ? "Analyzing..." : "Analyze game"}
+              <button type="button" onClick={() => openReport()}>
+                Full report
               </button>
             </div>
-            <div className="example-row" aria-label="Example games">
-              {examples.map((example) => (
-                <button
-                  key={example.value}
-                  type="button"
-                  className="text-button"
-                  onClick={() => setInput(example.value)}
-                >
-                  {example.label}
-                </button>
-              ))}
-            </div>
           </div>
-          {error ? <div className="error-box">{error}</div> : null}
+          {message ? <div className="error-box neutral">{message}</div> : null}
         </div>
 
-        <div className={`verdict-panel ${activeTone}`}>
-          <p className="eyebrow">Purchase verdict</p>
-          <strong>{result?.verdict.label || "Ready to scan"}</strong>
-          <span>{result?.verdict.summary || "Connect a Steam page to generate a public-signal purchase report."}</span>
-          <div className="score-badge large">{result?.riskScore ?? "--"}</div>
-        </div>
+        <aside className="auth-panel">
+          <p className="eyebrow">Account</p>
+          {user ? (
+            <>
+              <strong>{user.email}</strong>
+              <span>Paid reports and monthly access are linked to this account.</span>
+              <button type="button" onClick={logout}>
+                Sign out
+              </button>
+              {user.role === "admin" ? (
+                <button type="button" onClick={loadAdmin}>
+                  Load admin dashboard
+                </button>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <div className="tab-row">
+                <button type="button" className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>
+                  Register
+                </button>
+                <button type="button" className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>
+                  Login
+                </button>
+              </div>
+              <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email@example.com" />
+              <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" type="password" />
+              <button type="button" onClick={auth}>
+                {authMode === "register" ? "Create account" : "Log in"}
+              </button>
+            </>
+          )}
+        </aside>
       </section>
 
-      {result ? (
+      {admin ? (
+        <section className="admin-strip">
+          <div>
+            <span>Registered users</span>
+            <strong>{admin.users}</strong>
+          </div>
+          <div>
+            <span>Active paid entitlements</span>
+            <strong>{admin.activeEntitlements}</strong>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="workspace leaderboard">
+        <section className="report-card">
+          <div className="score-row">
+            <div>
+              <p>Top 30 watcher</p>
+              <h2>Free public ranking</h2>
+            </div>
+            <button type="button" onClick={loadTrending}>
+              Refresh
+            </button>
+          </div>
+          {loadingGames ? <div className="review-snapshot">Fetching Steam top sellers and public review signals...</div> : null}
+          {gamesError ? <div className="error-box">{gamesError}</div> : null}
+          <div className="game-list">
+            {games.map((game, index) => (
+              <button
+                key={game.appId}
+                type="button"
+                className={`game-row ${selected?.appId === game.appId ? "selected" : ""}`}
+                onClick={() => setSelected(game)}
+              >
+                <span>{index + 1}</span>
+                <img src={game.image} alt="" />
+                <strong>{game.name}</strong>
+                <small>{game.reviewSummary}</small>
+                <em className={game.tone}>{game.verdict}</em>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <aside className={`verdict-panel ${highlighted?.tone || "watch"}`}>
+          <p className="eyebrow">Selected game</p>
+          <strong>{highlighted?.name || "Choose a game"}</strong>
+          <span>{highlighted ? `${highlighted.price} · ${highlighted.reviewSummary}` : "Select a top game to inspect its free summary."}</span>
+          <div className="score-badge large">{highlighted?.riskScore ?? "--"}</div>
+          {highlighted ? (
+            <>
+              <div className="mini-signals">
+                {(highlighted.topSignals.length ? highlighted.topSignals : ["No major public red flags"]).map((signal) => (
+                  <span key={signal}>{signal}</span>
+                ))}
+              </div>
+              <button type="button" onClick={() => openReport(highlighted.appId)}>
+                View full report
+              </button>
+            </>
+          ) : null}
+        </aside>
+      </section>
+
+      {paywall ? (
+        <section className="pricing-grid">
+          <article className="price-card">
+            <p className="eyebrow">One-time report</p>
+            <h2>$19.90</h2>
+            <p>Unlock the complete analysis for Steam App {paywall.appId}.</p>
+            <button type="button" onClick={() => checkout("single", paywall.appId, "stripe")}>
+              Pay by card
+            </button>
+            <button type="button" onClick={() => checkout("single", paywall.appId, "paypal")}>
+              PayPal
+            </button>
+          </article>
+          <article className="price-card featured">
+            <p className="eyebrow">Monthly access</p>
+            <h2>$12.99/mo</h2>
+            <p>Unlimited full reports while your subscription remains active.</p>
+            <button type="button" onClick={() => checkout("monthly", paywall.appId, "stripe")}>
+              Subscribe by card
+            </button>
+            <button type="button" onClick={() => checkout("monthly", paywall.appId, "paypal")}>
+              Subscribe with PayPal
+            </button>
+          </article>
+          <article className="price-card">
+            <p className="eyebrow">Payment methods</p>
+            <h2>Cards + PayPal</h2>
+            <p>Credit cards run through Stripe Checkout. PayPal can be enabled in Stripe or connected with PayPal credentials.</p>
+          </article>
+        </section>
+      ) : null}
+
+      {report ? (
         <>
           <section className="game-summary">
-            <div className="game-art">
-              {result.game.image ? <img src={result.game.image} alt="" /> : null}
-            </div>
+            <div className="game-art">{report.game.image ? <img src={report.game.image} alt="" /> : null}</div>
             <div className="game-facts">
-              <p className="eyebrow">Steam app {result.appId}</p>
-              <h2>{result.game.name}</h2>
+              <p className="eyebrow">Paid full report</p>
+              <h2>{report.game.name}</h2>
               <div className="fact-grid">
                 <div>
-                  <span>Price</span>
-                  <strong>{result.game.price}</strong>
+                  <span>Verdict</span>
+                  <strong>{report.verdict.label}</strong>
                 </div>
                 <div>
-                  <span>Steam reviews</span>
-                  <strong>{result.reviewSummary?.description || "Unavailable"}</strong>
+                  <span>Risk score</span>
+                  <strong>{report.riskScore}</strong>
                 </div>
                 <div>
                   <span>Total reviews</span>
-                  <strong>{formatNumber(result.reviewSummary?.total)}</strong>
+                  <strong>{formatNumber(report.reviewSummary?.total)}</strong>
                 </div>
                 <div>
                   <span>Metacritic</span>
-                  <strong>{result.game.metacritic ?? "Unknown"}</strong>
+                  <strong>{report.game.metacritic ?? "Unknown"}</strong>
                 </div>
               </div>
-              <a className="source-link" href={result.game.steamUrl} target="_blank" rel="noreferrer">
+              <a className="source-link" href={report.game.steamUrl} target="_blank" rel="noreferrer">
                 Open Steam page
               </a>
             </div>
           </section>
 
-          <section className="workspace">
-            <section className={`report-card ${result.verdict.tone}`} aria-label="Risk report">
-              <div className="score-row">
-                <div>
-                  <p>Risk signals</p>
-                  <h2>{result.signals.length ? `${result.signals.length} red flags found` : "No major red flags found"}</h2>
-                </div>
-                <div className="score-badge">{result.riskScore}</div>
-              </div>
-              <div className="meter">
-                <span style={{ width: `${result.riskScore}%` }} />
-              </div>
-              <div className="signals-grid">
-                {result.signals.length ? (
-                  result.signals.map((signal) => (
-                    <article key={signal.id} className="signal-card">
-                      <strong>{signal.label}</strong>
-                      <span>{signal.detail}</span>
-                      <small>{signal.source} signal</small>
-                    </article>
-                  ))
-                ) : (
-                  <article className="signal-card">
-                    <strong>Clean first pass</strong>
-                    <span>Available public sources did not show strong purchase risk.</span>
-                    <small>Steam + public discussion</small>
-                  </article>
-                )}
-              </div>
-            </section>
-
-            <aside className="control-panel">
-              <div className="panel-heading">
-                <p>Complaint map</p>
-                <h2>What players are complaining about</h2>
-              </div>
-              <div className="complaint-list">
-                {result.topComplaints.length ? (
-                  result.topComplaints.map((item) => (
-                    <div key={item.label} className="complaint-item">
-                      <span>{item.label}</span>
-                      <strong>{item.count}/2 sources</strong>
-                    </div>
-                  ))
-                ) : (
-                  <div className="complaint-item">
-                    <span>No dominant complaint pattern</span>
-                    <strong>Low signal</strong>
-                  </div>
-                )}
-              </div>
-              <div className="review-snapshot">
-                <strong>Recent Steam review snippets</strong>
-                {result.steamReviews.length ? (
-                  result.steamReviews.slice(0, 3).map((review, index) => (
-                    <p key={`${review.slice(0, 18)}-${index}`}>{review.slice(0, 220)}</p>
-                  ))
-                ) : (
-                  <p>Steam reviews were not available for this scan.</p>
-                )}
-              </div>
-            </aside>
-          </section>
-
           <section className="business-grid public-sources">
             <article className="pro-card">
               <div className="panel-heading">
-                <p>Public social scan</p>
-                <h2>Reddit discussion signals</h2>
+                <p>Risk signals</p>
+                <h2>{report.signals.length} red flags</h2>
               </div>
-              {result.reddit.posts.length ? (
-                result.reddit.posts.map((post) => (
-                  <a key={post.url} className="reddit-item" href={post.url} target="_blank" rel="noreferrer">
-                    <span>r/{post.subreddit}</span>
-                    <strong>{post.title}</strong>
-                    <small>
-                      {post.score.toLocaleString("en-US")} points · {post.comments.toLocaleString("en-US")} comments
-                    </small>
-                  </a>
-                ))
-              ) : (
-                <div className="review-snapshot">
-                  <strong>Reddit search unavailable</strong>
-                  <p>{result.reddit.error || "No public posts returned for this query."}</p>
-                  <a className="source-link" href={result.reddit.searchUrl} target="_blank" rel="noreferrer">
-                    Search manually on Reddit
-                  </a>
-                </div>
-              )}
+              <div className="signals-grid single-column">
+                {(report.signals.length ? report.signals : [{ id: "clean", label: "No major red flags", detail: "Available public data looks relatively clean.", source: "Steam" }]).map((signal) => (
+                  <article key={signal.id} className="signal-card">
+                    <strong>{signal.label}</strong>
+                    <span>{signal.detail}</span>
+                    <small>{signal.source}</small>
+                  </article>
+                ))}
+              </div>
             </article>
 
             <article className="watchlist-card">
               <div className="panel-heading">
-                <p>Recommendation logic</p>
-                <h2>How to use the verdict</h2>
+                <p>Steam review snapshot</p>
+                <h2>{report.reviewSummary?.description || "Unknown"}</h2>
               </div>
-              <div className="watch-item">
-                <span>Likely safe</span>
-                <strong>Buy if the genre fits and price is fair.</strong>
-              </div>
-              <div className="watch-item">
-                <span>Buy with caution</span>
-                <strong>Read recent negative reviews before paying.</strong>
-              </div>
-              <div className="watch-item">
-                <span>Wait for sale / Avoid</span>
-                <strong>Wait for patches, deeper discounts, or a stronger recent trend.</strong>
-              </div>
+              {report.steamReviews.slice(0, 4).map((review, index) => (
+                <div key={`${index}-${review.slice(0, 8)}`} className="watch-item">
+                  <span>Recent public review</span>
+                  <strong>{review.slice(0, 180)}</strong>
+                </div>
+              ))}
             </article>
 
             <article className="calculator-card">
               <div className="panel-heading">
-                <p>Coverage notes</p>
-                <h2>Current data sources</h2>
+                <p>Social discussion</p>
+                <h2>Reddit / public web</h2>
               </div>
-              <ul className="notes-list">
-                <li>Steam Store public app details</li>
-                <li>Steam public recent reviews</li>
-                <li>Reddit public search results when available</li>
-                {result.limitations.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+              {report.reddit.posts.length ? (
+                report.reddit.posts.map((post) => (
+                  <a key={post.url} className="reddit-item" href={post.url} target="_blank" rel="noreferrer">
+                    <span>r/{post.subreddit}</span>
+                    <strong>{post.title}</strong>
+                    <small>{post.comments.toLocaleString("en-US")} comments</small>
+                  </a>
+                ))
+              ) : (
+                <div className="review-snapshot">
+                  <strong>Reddit API limited</strong>
+                  <p>{report.reddit.error || "No Reddit posts returned."}</p>
+                  <a className="source-link" href={report.reddit.searchUrl} target="_blank" rel="noreferrer">
+                    Search Reddit manually
+                  </a>
+                </div>
+              )}
             </article>
           </section>
         </>
-      ) : (
-        <section className="funnel empty-state">
-          <div className="panel-heading">
-            <p>What users get</p>
-            <h2>A purchase decision, not another review wall</h2>
-          </div>
-          <div className="funnel-steps">
-            <div>
-              <span>1</span>
-              <strong>Paste Steam link</strong>
-              <p>No account required for the first scan.</p>
-            </div>
-            <div>
-              <span>2</span>
-              <strong>Scan public signals</strong>
-              <p>Steam reviews plus public Reddit discussion when available.</p>
-            </div>
-            <div>
-              <span>3</span>
-              <strong>Get a verdict</strong>
-              <p>Buy, buy with caution, wait for sale, or avoid for now.</p>
-            </div>
-          </div>
-        </section>
-      )}
+      ) : null}
     </main>
   );
 }
