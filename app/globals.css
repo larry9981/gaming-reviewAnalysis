@@ -74,6 +74,10 @@ button {
   padding: 34px;
 }
 
+.product-hero {
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+}
+
 .eyebrow,
 .panel-heading p,
 .score-row p {
@@ -106,9 +110,172 @@ h1 {
   max-width: 720px;
 }
 
+.search-box {
+  background: rgba(13, 20, 30, 0.82);
+  border: 1px solid #30445c;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  margin-top: 26px;
+  padding: 14px;
+}
+
+.search-box label {
+  color: #c9d6e2;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.search-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.search-row input {
+  background: #090f17;
+  border: 1px solid #35506a;
+  border-radius: 7px;
+  color: var(--foreground);
+  min-height: 44px;
+  outline: none;
+  padding: 11px 12px;
+}
+
+.search-row input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(92, 162, 216, 0.16);
+}
+
+.example-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.text-button {
+  background: transparent;
+  border-color: #34506a;
+  color: #c9d9e7;
+  min-height: 32px;
+  padding: 6px 9px;
+}
+
+.error-box {
+  background: rgba(238, 102, 102, 0.12);
+  border: 1px solid rgba(238, 102, 102, 0.55);
+  border-radius: 8px;
+  color: #ffd6d6;
+  margin-top: 14px;
+  padding: 12px 14px;
+}
+
+.verdict-panel {
+  align-content: end;
+  background: rgba(18, 26, 37, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.verdict-panel strong {
+  font-size: 34px;
+  line-height: 1.05;
+}
+
+.verdict-panel span {
+  color: #b8c8d6;
+  line-height: 1.5;
+}
+
+.score-badge.large {
+  font-size: 56px;
+  height: 132px;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.ok .score-badge,
+.ok.score-badge {
+  border-color: rgba(98, 197, 138, 0.45);
+}
+
 .hero-metrics {
   display: grid;
   gap: 12px;
+}
+
+.game-summary {
+  background: rgba(18, 26, 37, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(240px, 0.4fr) minmax(0, 1fr);
+  padding: 18px;
+}
+
+.game-art {
+  align-content: center;
+  background: #0d141e;
+  border: 1px solid #263649;
+  border-radius: 8px;
+  display: grid;
+  min-height: 150px;
+  overflow: hidden;
+}
+
+.game-art img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.game-facts {
+  display: grid;
+  gap: 14px;
+}
+
+.game-facts h2 {
+  font-size: 30px;
+  line-height: 1.15;
+}
+
+.fact-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.fact-grid div {
+  background: #0d141e;
+  border: 1px solid #263649;
+  border-radius: 8px;
+  display: grid;
+  gap: 5px;
+  min-height: 76px;
+  padding: 12px;
+}
+
+.fact-grid span,
+.complaint-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.fact-grid strong,
+.complaint-item strong {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.source-link {
+  color: #a7d5ff;
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .hero-metrics div,
@@ -285,7 +452,8 @@ button:hover {
 
 .verdict span,
 .signal-card span,
-.funnel p {
+.funnel p,
+.review-snapshot p {
   color: #b4c3d1;
   line-height: 1.5;
 }
@@ -310,10 +478,89 @@ button:hover {
   font-size: 15px;
 }
 
+.signal-card small {
+  color: var(--blue);
+  font-weight: 800;
+}
+
+.complaint-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.complaint-item {
+  align-items: center;
+  background: #0d141e;
+  border: 1px solid #263649;
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.review-snapshot {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+}
+
+.review-snapshot p {
+  font-size: 13px;
+}
+
 .business-grid {
   display: grid;
   gap: 18px;
   grid-template-columns: 1fr 1fr 1.08fr;
+}
+
+.public-sources {
+  grid-template-columns: 1.2fr 0.9fr 0.9fr;
+}
+
+.reddit-item {
+  background: #0d141e;
+  border: 1px solid #263649;
+  border-radius: 8px;
+  color: var(--foreground);
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 13px;
+  text-decoration: none;
+}
+
+.reddit-item:hover {
+  border-color: #456b8b;
+}
+
+.reddit-item span {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.reddit-item small {
+  margin: 0;
+}
+
+.notes-list {
+  color: #c2d0dd;
+  display: grid;
+  gap: 10px;
+  line-height: 1.45;
+  margin: 16px 0 0;
+  padding-left: 18px;
+}
+
+.empty-state {
+  margin-top: 0;
 }
 
 .pro-card ul {
@@ -422,8 +669,13 @@ input[type="range"] {
   .hero-band,
   .workspace,
   .business-grid,
-  .funnel-steps {
+  .funnel-steps,
+  .game-summary {
     grid-template-columns: 1fr;
+  }
+
+  .fact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .hero-copy {
@@ -452,7 +704,9 @@ input[type="range"] {
 
   .signals-grid,
   .revenue-box,
-  .quick-actions {
+  .quick-actions,
+  .search-row,
+  .fact-grid {
     grid-template-columns: 1fr;
   }
 
