@@ -1,8 +1,12 @@
-# vinext-starter
+# Steam Guardrail
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Steam Guardrail is a small monetization prototype for a Steam purchase risk
+scanner. It demonstrates the free plugin to Pro subscription funnel with an
+interactive risk analyzer, watchlist examples, and a revenue simulator.
+
+The app runs on [vinext](https://github.com/cloudflare/vinext), with optional
+Cloudflare D1 and Drizzle support available if the prototype later needs
+accounts, watchlist storage, or paid plan state.
 
 ## Prerequisites
 
