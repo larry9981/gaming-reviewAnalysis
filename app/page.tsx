@@ -108,7 +108,7 @@ type AnalysisResult = {
 
 type Paywall = {
   appId: string;
-  preview?: AnalysisResult;
+  defaultPlan?: "single" | "monthly";
   plans: { id: "single" | "monthly"; label: string; price: string; appId?: string }[];
 };
 
@@ -178,6 +178,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const visibleGames = useMemo(() => games.slice(0, 10), [games]);
   const hiddenGames = useMemo(() => games.slice(10), [games]);
   const topFiveGames = useMemo(() => games.slice(0, 5), [games]);
+  const checkoutAppId = paywall?.appId || selected?.appId || highlighted?.appId || "";
   const showHome = page === "home";
   const showReviews = page === "reviews";
   const showPricing = page === "pricing";
@@ -387,11 +388,8 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       const data = await response.json().catch(() => ({ error: "Report failed." }));
       if (response.status === 402) {
         setPaywall(data);
-        if (data.preview) {
-          setReport(data.preview);
-          setReportLocked(true);
-        }
-        setMessage("This game report is locked. Choose a plan to view the full analysis.");
+        setReportLocked(false);
+        setMessage(user ? "This full report is locked. Choose a paid plan to continue." : "Create an account or log in, then choose a paid plan to continue.");
         return;
       }
       if (!response.ok) {
@@ -415,14 +413,19 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   }
 
   function openPaidPlatform() {
-    setMessage("Subscribe or buy the single report to open detailed platform feedback sources.");
+    setMessage("Choose a paid plan to open detailed platform feedback sources.");
     setPaywall((current) => current || (report ? { appId: report.appId, plans: [] } : null));
     document.querySelector(".pricing-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  async function checkout(plan: "single" | "monthly", appId?: string, provider: "stripe" | "paypal" | "airwallex" = "stripe") {
+  async function checkout(plan: "single" | "monthly", appId?: string, provider: "stripe" | "paypal" | "airwallex" = "airwallex") {
     if (!user) {
       setMessage("Create an account or log in before checkout.");
+      document.querySelector(".auth-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (plan === "single" && !(appId || selected?.appId || paywall?.appId)) {
+      setMessage("Select a Steam game before buying the single-game access.");
       return;
     }
     const busyKey = `${plan}-${provider}` as typeof checkoutBusy;
@@ -548,8 +551,8 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             <p className="eyebrow">Today&apos;s top 5</p>
             <h2>Fast buying analysis for trending Steam games</h2>
             <p>
-              These summaries update daily from Steam top sellers and public review signals. Open any game for a preview,
-              then subscribe to unlock full platform feedback and detailed gameplay analysis.
+              These summaries update daily from Steam top sellers and public review signals. Open any game to start a
+              paid full report with platform feedback and detailed gameplay analysis.
             </p>
           </div>
           <div className="top-five-feature-list">
@@ -790,7 +793,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 <strong>{entitlements.filter((item) => item.status === "active" && item.kind === "monthly").length}</strong>
               </div>
               <div className="account-list">
-                {(entitlements.length ? entitlements : [{ kind: "free", status: "preview", createdAt: Date.now() }]).slice(0, 4).map((item, index) => (
+                {(entitlements.length ? entitlements : [{ kind: "none", status: "No active paid access", createdAt: Date.now() }]).slice(0, 4).map((item, index) => (
                   <div key={`${item.kind}-${item.appId || index}`}>
                     <span>{item.kind}{item.appId ? ` · App ${item.appId}` : ""}</span>
                     <strong>{item.status}</strong>
@@ -910,36 +913,28 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       <section className="pricing-page">
         <div className="section-heading">
           <p className="eyebrow">Pricing</p>
-          <h2>Choose one report or unlock the full Steam research workflow.</h2>
+          <h2>Choose one paid access plan.</h2>
           <p>
-            Free visitors can preview game risk scores and limited review signals. Paid access unlocks detailed platform
-            feedback, Steam review samples, Reddit discussions, gameplay tips, and full buy-or-skip analysis.
+            Steam Guardrail supports two paid options: one-month access for a single selected game, or recurring monthly
+            access for repeated Steam purchase decisions.
           </p>
         </div>
         <div className="pricing-grid">
-          <article className="price-card">
-            <p className="eyebrow">Free preview</p>
-            <h2>$0</h2>
-            <p>View daily Top 30 rankings, risk scores, public mood charts, and limited preview analysis.</p>
-            <a className="link-button secondary-action" href="/reviews">
-              Browse free previews
-            </a>
-          </article>
-          <article className="price-card">
-            <p className="eyebrow">Single game report</p>
-            <h2>$19.90</h2>
-            <p>Unlock one complete report for a specific Steam game before you buy.</p>
-            <button type="button" onClick={() => highlighted && openReport(highlighted.appId)}>
-              Check selected game
+          <article className="price-card featured">
+            <p className="eyebrow">Default choice</p>
+            <h2>$29.99</h2>
+            <p>One-month access to the complete report for one selected Steam game, bound to your registered account.</p>
+            <button type="button" onClick={() => checkout("single", checkoutAppId)} disabled={checkoutBusy !== null || !checkoutAppId}>
+              {checkoutBusy === "single-airwallex" ? "Opening checkout..." : "Pay $29.99"}
             </button>
           </article>
-          <article className="price-card featured">
-            <p className="eyebrow">Monthly access</p>
-            <h2>$12.99/mo</h2>
-            <p>Best for Steam sales, wishlist reviews, and repeated purchase decisions across many games.</p>
-            <a className="link-button primary-action" href="/account">
-              Create account
-            </a>
+          <article className="price-card">
+            <p className="eyebrow">Recurring monthly</p>
+            <h2>$25.99/mo</h2>
+            <p>Continuous monthly access for Steam sales, wishlist reviews, and repeated purchase decisions.</p>
+            <button type="button" onClick={() => checkout("monthly", checkoutAppId)} disabled={checkoutBusy !== null}>
+              {checkoutBusy === "monthly-airwallex" ? "Opening checkout..." : "Subscribe $25.99/mo"}
+            </button>
           </article>
         </div>
       </section>
@@ -947,49 +942,33 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
 
       {(showReviews || showPricing) && paywall ? (
         <section className="pricing-grid checkout-pricing" aria-label="Checkout plans">
-          <article className="price-card">
-            <p className="eyebrow">One game, one clean answer</p>
-            <h2>$19.90</h2>
-            <p>Unlock the complete buy-or-skip report for Steam App {paywall.appId}. Best when one expensive game is on your mind.</p>
-            <button type="button" onClick={() => checkout("single", paywall.appId, "airwallex")} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "single-airwallex" ? "Opening card..." : "Credit card"}
-            </button>
-            <button type="button" onClick={() => checkout("single", paywall.appId, "stripe")} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "single-stripe" ? "Opening Stripe..." : "Stripe"}
-            </button>
-            <button type="button" onClick={() => checkout("single", paywall.appId, "paypal")} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "single-paypal" ? "Opening PayPal..." : "PayPal"}
-            </button>
-          </article>
           <article className="price-card featured">
-            <p className="eyebrow">Best for Steam sale season</p>
-            <h2>$12.99/mo</h2>
-            <p>Unlimited full reports while your subscription remains active. Compare wishlisted games before every checkout.</p>
-            <button type="button" onClick={() => checkout("monthly", paywall.appId, "airwallex")} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "monthly-airwallex" ? "Opening card..." : "Credit card"}
-            </button>
-            <button type="button" onClick={() => checkout("monthly", paywall.appId, "stripe")} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "monthly-stripe" ? "Opening Stripe..." : "Stripe subscription"}
-            </button>
-            <button type="button" onClick={() => checkout("monthly", paywall.appId, "paypal")} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "monthly-paypal" ? "Opening PayPal..." : "Subscribe with PayPal"}
+            <p className="eyebrow">Default choice</p>
+            <h2>$29.99</h2>
+            <p>One-month access to the complete buy-or-skip report for Steam App {paywall.appId}, tied to your account.</p>
+            <button type="button" onClick={() => checkout("single", paywall.appId)} disabled={checkoutBusy !== null}>
+              {checkoutBusy === "single-airwallex" ? "Opening checkout..." : "Pay $29.99"}
             </button>
           </article>
           <article className="price-card">
-            <p className="eyebrow">Payment methods</p>
-            <h2>Cards + PayPal</h2>
-            <p>Airwallex handles live card checkout, with PayPal and Stripe kept as additional provider options.</p>
+            <p className="eyebrow">Recurring monthly</p>
+            <h2>$25.99/mo</h2>
+            <p>Unlimited full reports while your subscription remains active. Compare wishlisted games before every checkout.</p>
+            <button type="button" onClick={() => checkout("monthly", paywall.appId)} disabled={checkoutBusy !== null}>
+              {checkoutBusy === "monthly-airwallex" ? "Opening checkout..." : "Subscribe $25.99/mo"}
+            </button>
+          </article>
+          <article className="price-card">
+            <p className="eyebrow">Secure checkout</p>
+            <h2>Account-bound access</h2>
+            <p>Payment starts only after login. Successful payments are verified server-side and attached to your registered user account.</p>
             <div className="method-row">
               <span>Credit cards</span>
               <strong>Airwallex Live</strong>
             </div>
             <div className="method-row">
-              <span>PayPal</span>
-              <strong>Live</strong>
-            </div>
-            <div className="method-row muted">
-              <span>Stripe</span>
-              <strong>Optional</strong>
+              <span>Default plan</span>
+              <strong>$29.99</strong>
             </div>
           </article>
         </section>
@@ -1038,9 +1017,9 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           {reportLocked ? (
             <section className="locked-strip">
               <div>
-                <p className="eyebrow">Preview mode</p>
+                <p className="eyebrow">Locked report</p>
                 <h2>Register and subscribe to unlock the full report</h2>
-                <p>Preview includes the core verdict, mood chart, limited platform signals, and one review sample. Full access unlocks all reviews, Reddit threads, characters, scenes, game tips, and detailed purchase analysis.</p>
+                <p>Full access unlocks platform feedback, Steam reviews, Reddit threads, characters, scenes, game tips, and detailed purchase analysis.</p>
               </div>
               <button type="button" onClick={() => setPaywall(paywall || { appId: report.appId, plans: [] })}>
                 View plans

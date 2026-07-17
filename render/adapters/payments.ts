@@ -7,15 +7,15 @@ export function planConfig(plan: CheckoutPlan, appId?: string) {
     return {
       mode: "payment",
       name: appId ? `Steam Guardrail full report ${appId}` : "Steam Guardrail single report",
-      amount: 1990,
+      amount: 2999,
       kind: "single",
-      description: "One complete game report",
+      description: "One month access for one complete game report",
     };
   }
   return {
     mode: "subscription",
     name: "Steam Guardrail Monthly",
-    amount: 1299,
+    amount: 2599,
     kind: "monthly",
     description: "Unlimited full reports while subscribed",
   };

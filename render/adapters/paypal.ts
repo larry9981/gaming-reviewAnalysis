@@ -60,7 +60,7 @@ export async function createPayPalCheckout({
             description: `Steam Guardrail full report ${appId || ""}`.trim(),
             amount: {
               currency_code: "USD",
-              value: "19.90",
+              value: "29.99",
             },
           },
         ],

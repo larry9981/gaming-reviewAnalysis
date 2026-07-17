@@ -14,6 +14,6 @@ export async function POST(request: Request) {
     ok: true,
     cancelled: result.meta?.changes || 0,
     message:
-      "Your local monthly access has been cancelled. If this subscription was created in PayPal or Stripe, also cancel it in that provider dashboard until provider-side cancellation is connected.",
+      "Your local monthly access has been cancelled. If this subscription was created through an external payment provider, also cancel it in that provider dashboard until provider-side cancellation is connected.",
   });
 }

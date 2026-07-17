@@ -121,9 +121,9 @@ export async function hasReportAccess(userId: string, appId: string) {
   const now = Date.now();
   const row = await getD1()
     .prepare(
-      "SELECT id FROM entitlements WHERE user_id = ? AND status = 'active' AND (kind = 'monthly' OR (kind = 'single' AND app_id = ?) OR (current_period_end IS NOT NULL AND current_period_end > ?)) LIMIT 1",
+      "SELECT id FROM entitlements WHERE user_id = ? AND status = 'active' AND ((kind = 'monthly' AND (current_period_end IS NULL OR current_period_end > ?)) OR (kind = 'single' AND app_id = ? AND (current_period_end IS NULL OR current_period_end > ?))) LIMIT 1",
     )
-    .bind(userId, appId, now)
+    .bind(userId, now, appId, now)
     .first<{ id: string }>();
   return Boolean(row);
 }
@@ -150,7 +150,7 @@ export async function grantEntitlement({
     if (existing) return;
   }
   const now = Date.now();
-  const periodEnd = kind === "monthly" ? now + 1000 * 60 * 60 * 24 * 31 : null;
+  const periodEnd = now + 1000 * 60 * 60 * 24 * 31;
   await getD1()
     .prepare(
       "INSERT INTO entitlements (id, user_id, kind, app_id, status, provider, provider_ref, current_period_end, created_at) VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?)",

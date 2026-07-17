@@ -1,8 +1,8 @@
 # Steam Guardrail
 
 Steam Guardrail is a small monetization prototype for a Steam purchase risk
-scanner. It demonstrates the free plugin to Pro subscription funnel with an
-interactive risk analyzer, watchlist examples, and a revenue simulator.
+scanner. It uses account-bound paid access with two plans: one-month access for
+a single selected game at $29.99, or recurring monthly access at $25.99/month.
 
 The app runs on [vinext](https://github.com/cloudflare/vinext), with optional
 Cloudflare D1 and Drizzle support available if the prototype later needs
