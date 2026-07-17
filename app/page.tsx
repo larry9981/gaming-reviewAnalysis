@@ -85,6 +85,8 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState<"single-stripe" | "single-paypal" | "monthly-stripe" | "monthly-paypal" | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [admin, setAdmin] = useState<{ users: number; activeEntitlements: number } | null>(null);
@@ -170,19 +172,26 @@ export default function Home() {
 
   async function auth() {
     setMessage("");
-    const response = await fetch(`/api/auth/${authMode}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage(data.error || "Authentication failed.");
-      return;
+    setAuthBusy(true);
+    try {
+      const response = await fetch(`/api/auth/${authMode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json().catch(() => ({ error: "Authentication failed. Please try again." }));
+      if (!response.ok) {
+        setMessage(data.error || "Authentication failed.");
+        return;
+      }
+      setUser(data.user);
+      setPassword("");
+      setMessage("You are signed in. You can continue to PayPal checkout.");
+    } catch {
+      setMessage("Authentication failed. Please check your connection and try again.");
+    } finally {
+      setAuthBusy(false);
     }
-    setUser(data.user);
-    setPassword("");
-    setMessage("You are signed in.");
   }
 
   async function logout() {
@@ -218,20 +227,29 @@ export default function Home() {
 
   async function checkout(plan: "single" | "monthly", appId?: string, provider: "stripe" | "paypal" = "stripe") {
     if (!user) {
-      setMessage("Create an account or log in before checkout.");
+      setMessage("Create an account or log in before checkout. Your PayPal window opens after sign in.");
       return;
     }
-    const response = await fetch(provider === "paypal" ? "/api/paypal/checkout" : "/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan, appId: appId || selected?.appId || paywall?.appId }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage(data.error || "Checkout could not start.");
-      return;
+    const busyKey = `${plan}-${provider}` as typeof checkoutBusy;
+    setCheckoutBusy(busyKey);
+    setMessage(provider === "paypal" ? "Opening PayPal checkout..." : "Opening card checkout...");
+    try {
+      const response = await fetch(provider === "paypal" ? "/api/paypal/checkout" : "/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan, appId: appId || selected?.appId || paywall?.appId }),
+      });
+      const data = await response.json().catch(() => ({ error: "Checkout could not start. Please try again." }));
+      if (!response.ok || !data.checkoutUrl) {
+        setMessage(data.error || "Checkout could not start.");
+        return;
+      }
+      window.location.assign(data.checkoutUrl);
+    } catch {
+      setMessage("Checkout could not start. Please check your connection and try again.");
+    } finally {
+      setCheckoutBusy(null);
     }
-    window.location.href = data.checkoutUrl;
   }
 
   async function loadAdmin() {
@@ -313,8 +331,8 @@ export default function Home() {
               </div>
               <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email@example.com" />
               <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" type="password" />
-              <button type="button" onClick={auth}>
-                {authMode === "register" ? "Create account" : "Log in"}
+              <button type="button" onClick={auth} disabled={authBusy}>
+                {authBusy ? "Working..." : authMode === "register" ? "Create account" : "Log in"}
               </button>
             </>
           )}
@@ -408,22 +426,22 @@ export default function Home() {
             <p className="eyebrow">One game, one clean answer</p>
             <h2>$19.90</h2>
             <p>Unlock the complete buy-or-skip report for Steam App {paywall.appId}. Best when one expensive game is on your mind.</p>
-            <button type="button" onClick={() => checkout("single", paywall.appId, "stripe")}>
-              Pay by card
+            <button type="button" onClick={() => checkout("single", paywall.appId, "stripe")} disabled={checkoutBusy !== null}>
+              {checkoutBusy === "single-stripe" ? "Opening..." : "Pay by card"}
             </button>
-            <button type="button" onClick={() => checkout("single", paywall.appId, "paypal")}>
-              PayPal
+            <button type="button" onClick={() => checkout("single", paywall.appId, "paypal")} disabled={checkoutBusy !== null}>
+              {checkoutBusy === "single-paypal" ? "Opening PayPal..." : "PayPal"}
             </button>
           </article>
           <article className="price-card featured">
             <p className="eyebrow">Best for Steam sale season</p>
             <h2>$12.99/mo</h2>
             <p>Unlimited full reports while your subscription remains active. Compare wishlisted games before every checkout.</p>
-            <button type="button" onClick={() => checkout("monthly", paywall.appId, "stripe")}>
-              Subscribe by card
+            <button type="button" onClick={() => checkout("monthly", paywall.appId, "stripe")} disabled={checkoutBusy !== null}>
+              {checkoutBusy === "monthly-stripe" ? "Opening..." : "Subscribe by card"}
             </button>
-            <button type="button" onClick={() => checkout("monthly", paywall.appId, "paypal")}>
-              Subscribe with PayPal
+            <button type="button" onClick={() => checkout("monthly", paywall.appId, "paypal")} disabled={checkoutBusy !== null}>
+              {checkoutBusy === "monthly-paypal" ? "Opening PayPal..." : "Subscribe with PayPal"}
             </button>
           </article>
           <article className="price-card">

@@ -53,23 +53,18 @@ function hex(buffer: ArrayBuffer) {
 
 export async function hashPassword(password: string) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      hash: "SHA-256",
-      salt,
-      iterations: 120000,
-    },
-    key,
-    256,
-  );
-  return `pbkdf2:${hex(salt)}:${hex(bits)}`;
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(`${hex(salt)}:${password}`));
+  return `sha256:${hex(salt)}:${hex(digest)}`;
 }
 
 export async function verifyPassword(password: string, stored: string) {
-  const [, saltHex, hashHex] = stored.split(":");
+  const [scheme, saltHex, hashHex] = stored.split(":");
   if (!saltHex || !hashHex) return false;
+  if (scheme === "sha256") {
+    const digest = await crypto.subtle.digest("SHA-256", encoder.encode(`${saltHex}:${password}`));
+    return hex(digest) === hashHex;
+  }
+  if (scheme !== "pbkdf2") return false;
   const salt = new Uint8Array(saltHex.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || []);
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
