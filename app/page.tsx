@@ -686,14 +686,24 @@ export default function Home() {
             <article className="watchlist-card">
               <div className="panel-heading">
                 <p>Steam review snapshot</p>
-                <h2>{report.reviewSummary?.description || "Unknown"}</h2>
+                <h2>{report.reviewSummary?.description || "Recent player comments"}</h2>
               </div>
-              {report.steamReviews.slice(0, 4).map((review, index) => (
-                <div key={`${index}-${review.slice(0, 8)}`} className="watch-item">
-                  <span>Recent public review</span>
-                  <strong>{review.slice(0, 180)}</strong>
+              {report.steamReviews.length ? (
+                report.steamReviews.slice(0, 4).map((review, index) => (
+                  <div key={`${index}-${review.slice(0, 8)}`} className="watch-item">
+                    <span>Recent public Steam review</span>
+                    <strong>{review.slice(0, 220)}</strong>
+                  </div>
+                ))
+              ) : (
+                <div className="review-snapshot">
+                  <strong>No recent Steam review text returned</strong>
+                  <p>Steam may have limited review text for this request. Open the Steam review page for the latest player comments.</p>
+                  <a className="source-link" href={`${report.game.steamUrl}/#app_reviews_hash`} target="_blank" rel="noreferrer">
+                    Open Steam reviews
+                  </a>
                 </div>
-              ))}
+              )}
             </article>
 
             <article className="calculator-card">

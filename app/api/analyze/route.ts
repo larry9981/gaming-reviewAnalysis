@@ -1,4 +1,4 @@
-import { getCurrentUser, hasReportAccess, json } from "../../lib/data";
+import { getCurrentUser, hasReportAccess, isAdmin, json } from "../../lib/data";
 import { analyzeSteamApp, extractAppId } from "../../lib/steam";
 
 export async function POST(request: Request) {
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   }
 
   const user = await getCurrentUser(request);
-  const allowed = user ? await hasReportAccess(user.id, appId) : false;
+  const allowed = user ? isAdmin(user) || (await hasReportAccess(user.id, appId)) : false;
   if (!allowed) {
     return json(
       {
