@@ -1,0 +1,5 @@
+Contact: mailto:jqqbest@gmail.com
+Preferred-Languages: en, zh
+Canonical: https://steam-guardrail-app.jqqbest.chatgpt.site/.well-known/security.txt
+Policy: https://steam-guardrail-app.jqqbest.chatgpt.site/security
+Expires: 2027-07-17T00:00:00Z

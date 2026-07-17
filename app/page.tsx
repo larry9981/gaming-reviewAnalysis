@@ -1209,6 +1209,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           <strong>Company</strong>
           <a href="/about">About</a>
           <a href="/contact">Contact</a>
+          <a href="/security">Security</a>
           <a href="/privacy">Privacy Policy</a>
           <a href="/terms">Terms of Use</a>
         </nav>
