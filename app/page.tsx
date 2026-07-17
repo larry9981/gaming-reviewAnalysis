@@ -118,6 +118,27 @@ function formatNumber(value?: number | null) {
 
 type SitePage = "home" | "reviews" | "pricing" | "account";
 
+const heroSlides = [
+  {
+    image: "/hero/steam-guardrail-hero-1.png",
+    eyebrow: "AI-powered Steam review intelligence",
+    title: "Know the risk before you buy.",
+    summary: "Daily game signals, public mood, refund clues, and social feedback in one buyer report.",
+  },
+  {
+    image: "/hero/steam-guardrail-hero-2.png",
+    eyebrow: "Review bombs, hype cycles, hidden friction",
+    title: "Turn public complaints into buying clarity.",
+    summary: "See what players are praising, warning about, and refunding before you open checkout.",
+  },
+  {
+    image: "/hero/steam-guardrail-hero-3.png",
+    eyebrow: "For Steam sales and wishlist decisions",
+    title: "Compare the game, not the trailer.",
+    summary: "Use risk scores, platform feedback, and practical gameplay notes to avoid expensive regrets.",
+  },
+];
+
 export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const [games, setGames] = useState<TopGame[]>([]);
   const [gamesError, setGamesError] = useState("");
@@ -150,7 +171,6 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const highlighted = useMemo(() => selected || games[0] || null, [games, selected]);
   const visibleGames = useMemo(() => games.slice(0, 10), [games]);
   const hiddenGames = useMemo(() => games.slice(10), [games]);
-  const bannerGames = useMemo(() => games.filter((game) => game.image).slice(0, 3), [games]);
   const topFiveGames = useMemo(() => games.slice(0, 5), [games]);
   const showHome = page === "home";
   const showReviews = page === "reviews";
@@ -242,12 +262,12 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   }, []);
 
   useEffect(() => {
-    if (bannerGames.length < 2) return;
+    if (heroSlides.length < 2) return;
     const timer = window.setInterval(() => {
-      setActiveBanner((current) => (current + 1) % bannerGames.length);
+      setActiveBanner((current) => (current + 1) % heroSlides.length);
     }, 4600);
     return () => window.clearInterval(timer);
-  }, [bannerGames.length]);
+  }, []);
 
   async function auth() {
     setMessage("");
@@ -433,40 +453,33 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       {showHome ? (
       <section className="home-page">
         <div className="home-hero commercial-hero">
-          <div className="home-copy">
-            <p className="eyebrow">Independent Steam review intelligence</p>
-            <h1>Steam game reviews, risk scores, and buying advice before checkout.</h1>
-            <p className="subcopy">
-              Steam Guardrail helps PC players compare trending games with public reviews, social discussion signals,
-              refund-risk language, DRM warnings, and gameplay-fit analysis before spending money.
-            </p>
-            <div className="hero-actions">
-              <a className="primary-action link-button" href="/reviews">
-                Start review analysis
-              </a>
-              <a className="secondary-action link-button" href="/pricing">
-                View pricing
-              </a>
-            </div>
-          </div>
-          <div className="banner-carousel" aria-label="Featured game review banners">
-            {(bannerGames.length ? bannerGames : topFiveGames).slice(0, 3).map((game, index) => (
-              <a
-                key={game.appId || index}
+          <div className="banner-carousel" aria-label="AI-generated Steam review hero banners">
+            {heroSlides.map((slide, index) => (
+              <section
+                key={slide.image}
                 className={`banner-slide ${activeBanner === index ? "active" : ""}`}
-                href={`/reviews?app=${game.appId}`}
                 style={{ transform: `translateX(${(index - activeBanner) * 100}%)` }}
               >
-                {game.image ? <img src={game.image} alt={`${game.name} review banner`} /> : null}
-                <span>#{index + 1} Trending Steam review</span>
-                <strong>{game.name}</strong>
-                <em>{game.verdict} · Risk {game.riskScore}/100</em>
-              </a>
+                <img src={slide.image} alt="" />
+                <div className="banner-copy">
+                  <span>{slide.eyebrow}</span>
+                  <strong>{slide.title}</strong>
+                  <p>{slide.summary}</p>
+                  <div className="hero-actions">
+                    <a className="primary-action link-button" href="/reviews">
+                      Start review analysis
+                    </a>
+                    <a className="secondary-action link-button" href="/pricing">
+                      View pricing
+                    </a>
+                  </div>
+                </div>
+              </section>
             ))}
             <div className="banner-dots" aria-label="Banner controls">
-              {(bannerGames.length ? bannerGames : topFiveGames).slice(0, 3).map((game, index) => (
+              {heroSlides.map((slide, index) => (
                 <button
-                  key={`${game.appId}-dot`}
+                  key={`${slide.image}-dot`}
                   type="button"
                   aria-label={`Show banner ${index + 1}`}
                   className={activeBanner === index ? "active" : ""}
@@ -1161,30 +1174,50 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       ) : null}
 
       <footer className="site-footer">
-        <div>
-          <strong>Steam Guardrail</strong>
-          <p>Daily Steam review analysis, social signal summaries, and safer buying advice for PC players.</p>
+        <div className="footer-cta">
+          <div>
+            <span>Steam Guardrail</span>
+            <h2>Stop guessing which game is worth your money.</h2>
+            <p>Use review intelligence, player complaints, and platform feedback before your next Steam checkout.</p>
+          </div>
+          <a className="link-button primary-action" href="/reviews">Analyze a game</a>
         </div>
-        <nav aria-label="Footer navigation">
+        <div className="footer-brand">
+          <strong>Steam Guardrail</strong>
+          <p>Independent Steam review analysis, social signal summaries, and safer buying advice for PC players.</p>
+          <div className="footer-badges">
+            <span>Independent</span>
+            <span>Daily signals</span>
+            <span>Player-first</span>
+          </div>
+        </div>
+        <nav className="footer-column" aria-label="Product navigation">
+          <strong>Product</strong>
           <a href="/">Home</a>
           <a href="/reviews">Review Analysis</a>
           <a href="/pricing">Pricing</a>
           <a href="/account">Register / Login</a>
-          <a href="/about">About</a>
-          <a href="/privacy">Privacy</a>
-          <a href="/terms">Terms</a>
-          <a href="/contact">Contact</a>
         </nav>
-        <nav aria-label="Social links">
+        <nav className="footer-column" aria-label="Company navigation">
+          <strong>Company</strong>
+          <a href="/about">About</a>
+          <a href="/contact">Contact</a>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/terms">Terms of Use</a>
+        </nav>
+        <nav className="footer-column" aria-label="Social links">
+          <strong>Social</strong>
           <a href="https://www.reddit.com/search/?q=Steam%20reviews" target="_blank" rel="noreferrer">Reddit</a>
           <a href="https://www.youtube.com/results?search_query=Steam+game+reviews" target="_blank" rel="noreferrer">YouTube</a>
           <a href="https://www.tiktok.com/search?q=steam%20game%20reviews" target="_blank" rel="noreferrer">TikTok</a>
           <a href="https://www.instagram.com/explore/search/keyword/?q=steam%20games" target="_blank" rel="noreferrer">Instagram</a>
         </nav>
-        <small>
-          Steam Guardrail is an independent purchase-assistance tool and is not affiliated with Valve, Steam, Reddit,
-          YouTube, TikTok, Facebook, or Instagram.
-        </small>
+        <div className="footer-bottom">
+          <small>© 2026 Steam Guardrail. All rights reserved.</small>
+          <small>
+            Independent purchase-assistance tool. Not affiliated with Valve, Steam, Reddit, YouTube, TikTok, Facebook, or Instagram.
+          </small>
+        </div>
       </footer>
     </main>
   );

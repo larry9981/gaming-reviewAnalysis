@@ -120,11 +120,10 @@ button {
 .home-hero {
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
 }
 
 .commercial-hero {
-  grid-template-columns: minmax(340px, 0.68fr) minmax(0, 1.32fr);
+  grid-template-columns: 1fr;
 }
 
 .home-copy {
@@ -148,7 +147,7 @@ button {
   background: #0b0f15;
   border: 1px solid #2f4054;
   border-radius: 8px;
-  min-height: 430px;
+  min-height: 390px;
   overflow: hidden;
   position: relative;
 }
@@ -173,6 +172,10 @@ button {
   width: 100%;
 }
 
+.banner-slide.active img {
+  animation: heroImageDrift 6s ease-in-out both;
+}
+
 .banner-slide::after {
   background:
     linear-gradient(90deg, rgba(8, 10, 14, 0.94), rgba(8, 10, 14, 0.3) 58%, rgba(8, 10, 14, 0.72)),
@@ -182,9 +185,16 @@ button {
   position: absolute;
 }
 
+.banner-copy {
+  display: grid;
+  max-width: 700px;
+  position: relative;
+  z-index: 1;
+}
+
 .banner-slide span,
 .banner-slide strong,
-.banner-slide em {
+.banner-slide p {
   max-width: 620px;
   position: relative;
   z-index: 1;
@@ -203,11 +213,10 @@ button {
   margin-top: 8px;
 }
 
-.banner-slide em {
+.banner-slide p {
   color: #e4eef8;
   font-size: 15px;
-  font-style: normal;
-  font-weight: 900;
+  line-height: 1.55;
   margin-top: 14px;
 }
 
@@ -232,6 +241,16 @@ button {
 
 .banner-dots button.active {
   background: var(--green);
+}
+
+@keyframes heroImageDrift {
+  from {
+    transform: scale(1.02);
+  }
+
+  to {
+    transform: scale(1.08);
+  }
 }
 
 .banner-tile {
@@ -462,25 +481,98 @@ button {
 
 .site-footer {
   display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 24px;
+  grid-template-columns: minmax(260px, 1.4fr) repeat(3, minmax(150px, 0.7fr));
+  overflow: hidden;
+  padding: 0;
 }
 
-.site-footer nav {
+.footer-cta {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(94, 225, 139, 0.18), rgba(98, 214, 255, 0.08));
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 18px;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 28px;
+}
+
+.footer-cta span {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.footer-cta h2 {
+  font-size: clamp(28px, 4vw, 46px);
+  line-height: 1;
+  max-width: 780px;
+}
+
+.footer-brand,
+.footer-column {
+  display: grid;
+  gap: 10px;
+  padding: 0 24px 24px;
+}
+
+.footer-brand p {
+  max-width: 390px;
+}
+
+.footer-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-end;
+  gap: 8px;
 }
 
+.footer-badges span {
+  background: rgba(94, 225, 139, 0.08);
+  border: 1px solid rgba(94, 225, 139, 0.22);
+  border-radius: 999px;
+  color: #ddffe7;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 9px;
+}
+
+.footer-column {
+  align-content: start;
+}
+
+.footer-column strong {
+  color: var(--foreground);
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.footer-column a,
 .site-footer a {
-  color: #dff7ff;
+  color: #c8d8e5;
   font-weight: 800;
   text-decoration: none;
 }
 
-.site-footer small {
+.footer-column a:hover,
+.site-footer a:hover {
+  color: var(--green);
+}
+
+.footer-bottom {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   grid-column: 1 / -1;
+  justify-content: space-between;
+  padding: 16px 24px 22px;
+}
+
+.footer-bottom small {
   margin: 0;
 }
 
@@ -1831,12 +1923,12 @@ input[type="range"] {
     grid-template-columns: 1fr;
   }
 
-  .top-five-feature a {
-    grid-template-columns: 180px minmax(0, 1fr);
+  .footer-cta {
+    grid-template-columns: 1fr;
   }
 
-  .site-footer nav {
-    justify-content: flex-start;
+  .top-five-feature a {
+    grid-template-columns: 180px minmax(0, 1fr);
   }
 
   .fact-grid {
@@ -1884,7 +1976,6 @@ input[type="range"] {
   .home-section,
   .newsletter-panel,
   .seo-copy,
-  .site-footer,
   .hero-copy,
   .auth-panel,
   .control-panel,
@@ -1903,11 +1994,33 @@ input[type="range"] {
   }
 
   .banner-carousel {
-    min-height: 360px;
+    min-height: 330px;
   }
 
   .banner-slide {
-    padding: 20px;
+    padding: 18px;
+  }
+
+  .banner-slide::after {
+    background:
+      linear-gradient(90deg, rgba(8, 10, 14, 0.9), rgba(8, 10, 14, 0.56)),
+      linear-gradient(180deg, transparent, rgba(8, 10, 14, 0.88));
+  }
+
+  .banner-copy strong {
+    font-size: 36px;
+  }
+
+  .banner-copy p {
+    font-size: 14px;
+  }
+
+  .footer-cta,
+  .footer-brand,
+  .footer-column,
+  .footer-bottom {
+    padding-left: 18px;
+    padding-right: 18px;
   }
 
   .top-five-feature a {
