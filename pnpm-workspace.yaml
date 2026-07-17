@@ -1,7 +1,11 @@
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  workerd: true
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'
   - esbuild
-  - pnpm
   - sharp
   - unrs-resolver
   - workerd
