@@ -116,7 +116,9 @@ function formatNumber(value?: number | null) {
   return typeof value === "number" ? value.toLocaleString("en-US") : "Unknown";
 }
 
-export default function Home() {
+type SitePage = "home" | "reviews" | "pricing" | "account";
+
+export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const [games, setGames] = useState<TopGame[]>([]);
   const [gamesError, setGamesError] = useState("");
   const [loadingGames, setLoadingGames] = useState(true);
@@ -137,6 +139,7 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [activeBanner, setActiveBanner] = useState(0);
   const [admin, setAdmin] = useState<{
     users: number;
     activeEntitlements: number;
@@ -149,6 +152,10 @@ export default function Home() {
   const hiddenGames = useMemo(() => games.slice(10), [games]);
   const bannerGames = useMemo(() => games.filter((game) => game.image).slice(0, 3), [games]);
   const topFiveGames = useMemo(() => games.slice(0, 5), [games]);
+  const showHome = page === "home";
+  const showReviews = page === "reviews";
+  const showPricing = page === "pricing";
+  const showAccount = page === "account";
 
   async function loadMe() {
     const response = await fetch("/api/me");
@@ -226,7 +233,21 @@ export default function Home() {
       setMessage("PayPal checkout cancelled. No charge was made.");
       window.history.replaceState({}, "", "/");
     }
+    const appId = params.get("app");
+    if (appId) {
+      setInput(appId);
+      openReport(appId);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
+
+  useEffect(() => {
+    if (bannerGames.length < 2) return;
+    const timer = window.setInterval(() => {
+      setActiveBanner((current) => (current + 1) % bannerGames.length);
+    }, 4600);
+    return () => window.clearInterval(timer);
+  }, [bannerGames.length]);
 
   async function auth() {
     setMessage("");
@@ -398,19 +419,20 @@ export default function Home() {
   return (
     <main className="app-shell">
       <header className="site-header">
-        <a className="brand-mark" href="#home" aria-label="Steam Guardrail home">
+        <a className="brand-mark" href="/" aria-label="Steam Guardrail home">
           Steam Guardrail
         </a>
         <nav className="site-nav" aria-label="Primary navigation">
-          <a href="#home">Home</a>
-          <a href="#analysis">Review Analysis</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#account">Register / Login</a>
+          <a className={showHome ? "active" : ""} href="/">Home</a>
+          <a className={showReviews ? "active" : ""} href="/reviews">Review Analysis</a>
+          <a className={showPricing ? "active" : ""} href="/pricing">Pricing</a>
+          <a className={showAccount ? "active" : ""} href="/account">Register / Login</a>
         </nav>
       </header>
 
-      <section id="home" className="home-page">
-        <div className="home-hero">
+      {showHome ? (
+      <section className="home-page">
+        <div className="home-hero commercial-hero">
           <div className="home-copy">
             <p className="eyebrow">Independent Steam review intelligence</p>
             <h1>Steam game reviews, risk scores, and buying advice before checkout.</h1>
@@ -419,23 +441,39 @@ export default function Home() {
               refund-risk language, DRM warnings, and gameplay-fit analysis before spending money.
             </p>
             <div className="hero-actions">
-              <a className="primary-action link-button" href="#analysis">
+              <a className="primary-action link-button" href="/reviews">
                 Start review analysis
               </a>
-              <a className="secondary-action link-button" href="#pricing">
+              <a className="secondary-action link-button" href="/pricing">
                 View pricing
               </a>
             </div>
           </div>
-          <div className="banner-grid" aria-label="Featured game review banners">
+          <div className="banner-carousel" aria-label="Featured game review banners">
             {(bannerGames.length ? bannerGames : topFiveGames).slice(0, 3).map((game, index) => (
-              <button key={game.appId || index} type="button" className="banner-tile" onClick={() => selectGame(game)}>
+              <a
+                key={game.appId || index}
+                className={`banner-slide ${activeBanner === index ? "active" : ""}`}
+                href={`/reviews?app=${game.appId}`}
+                style={{ transform: `translateX(${(index - activeBanner) * 100}%)` }}
+              >
                 {game.image ? <img src={game.image} alt={`${game.name} review banner`} /> : null}
-                <span>#{index + 1} Trending review</span>
+                <span>#{index + 1} Trending Steam review</span>
                 <strong>{game.name}</strong>
-                <em>{game.verdict}</em>
-              </button>
+                <em>{game.verdict} · Risk {game.riskScore}/100</em>
+              </a>
             ))}
+            <div className="banner-dots" aria-label="Banner controls">
+              {(bannerGames.length ? bannerGames : topFiveGames).slice(0, 3).map((game, index) => (
+                <button
+                  key={`${game.appId}-dot`}
+                  type="button"
+                  aria-label={`Show banner ${index + 1}`}
+                  className={activeBanner === index ? "active" : ""}
+                  onClick={() => setActiveBanner(index)}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -448,16 +486,18 @@ export default function Home() {
               then subscribe to unlock full platform feedback and detailed gameplay analysis.
             </p>
           </div>
-          <div className="top-five-grid">
+          <div className="top-five-feature-list">
             {topFiveGames.map((game, index) => (
-              <article key={game.appId} className="top-five-card">
-                <button type="button" onClick={() => selectGame(game)}>
+              <article key={game.appId} className="top-five-feature">
+                <a href={`/reviews?app=${game.appId}`}>
                   {game.image ? <img src={game.image} alt={`${game.name} Steam review`} /> : null}
-                  <span>#{index + 1}</span>
-                  <strong>{game.name}</strong>
-                  <small>{game.reviewSummary} · Risk {game.riskScore}/100</small>
-                  <em className={game.tone}>{game.verdict}</em>
-                </button>
+                  <div>
+                    <span>#{index + 1} Trending</span>
+                    <strong>{game.name}</strong>
+                    <p>{game.reviewSummary}</p>
+                    <small>{game.verdict} · Risk {game.riskScore}/100 · {game.price}</small>
+                  </div>
+                </a>
               </article>
             ))}
           </div>
@@ -511,8 +551,11 @@ export default function Home() {
           </article>
         </section>
       </section>
+      ) : null}
 
-      <section id="analysis" className="hero-band product-hero">
+      {showReviews ? (
+      <>
+      <section className="hero-band product-hero">
         <div className="hero-copy">
           <p className="eyebrow">Daily Steam intelligence</p>
           <h1>Don&apos;t buy your next regret.</h1>
@@ -551,7 +594,125 @@ export default function Home() {
           {message ? <div className="error-box neutral">{message}</div> : null}
         </div>
 
-        <aside id="account" className="auth-panel">
+        <aside className="verdict-panel watch">
+          <p className="eyebrow">How reports work</p>
+          <strong>Preview first, unlock when ready.</strong>
+          <span>Free visitors can inspect limited public signals. Paid users see complete platform feedback, review samples, story notes, characters, scenes, and buyer tips.</span>
+          <div className="conversion-list">
+            <span>Steam</span>
+            <span>Reddit</span>
+            <span>Social mood</span>
+          </div>
+          <a className="link-button primary-action" href="/pricing">Compare plans</a>
+        </aside>
+      </section>
+
+      <section className="workspace leaderboard">
+        <section className="report-card">
+          <div className="score-row">
+            <div>
+              <p>Daily Steam Top 30</p>
+              <h2>Top 10 visible, 20 more inside</h2>
+            </div>
+            <button type="button" onClick={loadTrending}>
+              Refresh
+            </button>
+          </div>
+          {loadingGames ? <div className="review-snapshot">Fetching Steam top sellers and public review signals...</div> : null}
+          {gamesError ? <div className="error-box">{gamesError}</div> : null}
+          <div className="game-list">
+            {visibleGames.map((game, index) => (
+              <button
+                key={game.appId}
+                type="button"
+                className={`game-row ${selected?.appId === game.appId ? "selected" : ""}`}
+                onClick={() => selectGame(game)}
+              >
+                <span className="rank-badge">{index + 1}</span>
+                <img src={game.image} alt="" />
+                <div className="game-title">
+                  <strong>{game.name}</strong>
+                  <small>Risk {game.riskScore}/100</small>
+                </div>
+                <small>{game.reviewSummary}</small>
+                <em className={game.tone}>{game.verdict}</em>
+              </button>
+            ))}
+          </div>
+          {hiddenGames.length ? (
+            <details className="more-games">
+              <summary>Show ranks 11-30</summary>
+              <div className="game-list scroll-window">
+                {hiddenGames.map((game, index) => (
+                  <button
+                    key={game.appId}
+                    type="button"
+                    className={`game-row compact ${selected?.appId === game.appId ? "selected" : ""}`}
+                    onClick={() => selectGame(game)}
+                  >
+                    <span className="rank-badge">{index + 11}</span>
+                    <img src={game.image} alt="" />
+                    <div className="game-title">
+                      <strong>{game.name}</strong>
+                      <small>Risk {game.riskScore}/100</small>
+                    </div>
+                    <small>{game.reviewSummary}</small>
+                    <em className={game.tone}>{game.verdict}</em>
+                  </button>
+                ))}
+              </div>
+            </details>
+          ) : null}
+        </section>
+
+        <aside className={`verdict-panel ${highlighted?.tone || "watch"}`}>
+          <p className="eyebrow">Before you buy</p>
+          <strong>{highlighted?.name || "Choose a game"}</strong>
+          <span>{highlighted ? `${highlighted.price} · ${highlighted.reviewSummary}` : "Select a top game to inspect its free summary."}</span>
+          <div className="selected-meta">
+            <div>
+              <span>Risk score</span>
+              <strong>{highlighted?.riskScore ?? "--"}</strong>
+            </div>
+            <div>
+              <span>Buy verdict</span>
+              <strong>{highlighted?.verdict || "Pick a game"}</strong>
+            </div>
+          </div>
+          {highlighted ? (
+            <>
+              <div className="mini-signals">
+                {(highlighted.topSignals.length ? highlighted.topSignals : ["No major public red flags"]).map((signal) => (
+                  <span key={signal}>{signal}</span>
+                ))}
+              </div>
+              <div className="conversion-list">
+                <span>Steam reviews</span>
+                <span>Public backlash</span>
+                <span>Refund clues</span>
+              </div>
+              <button type="button" onClick={() => selectGame(highlighted)} disabled={reportBusy}>
+                {reportBusy ? "Checking access..." : "Open buyer report"}
+              </button>
+            </>
+          ) : null}
+        </aside>
+      </section>
+      </>
+      ) : null}
+
+      {showAccount ? (
+      <>
+      <section className="hero-band account-page">
+        <div className="hero-copy">
+          <p className="eyebrow">Account access</p>
+          <h1>Register, log in, and manage your Steam reports.</h1>
+          <p className="subcopy">
+            Save report unlocks, review your subscription status, cancel monthly access, and let admins export user and payment data.
+          </p>
+          {message ? <div className="error-box neutral">{message}</div> : null}
+        </div>
+        <aside className="auth-panel">
           <p className="eyebrow">Player account</p>
           {user ? (
             <>
@@ -676,100 +837,11 @@ export default function Home() {
           </div>
         </section>
       ) : null}
+      </>
+      ) : null}
 
-      <section className="workspace leaderboard">
-        <section className="report-card">
-          <div className="score-row">
-            <div>
-              <p>Daily Steam Top 30</p>
-              <h2>Top 10 visible, 20 more inside</h2>
-            </div>
-            <button type="button" onClick={loadTrending}>
-              Refresh
-            </button>
-          </div>
-          {loadingGames ? <div className="review-snapshot">Fetching Steam top sellers and public review signals...</div> : null}
-          {gamesError ? <div className="error-box">{gamesError}</div> : null}
-          <div className="game-list">
-            {visibleGames.map((game, index) => (
-              <button
-                key={game.appId}
-                type="button"
-                className={`game-row ${selected?.appId === game.appId ? "selected" : ""}`}
-                onClick={() => selectGame(game)}
-              >
-                <span className="rank-badge">{index + 1}</span>
-                <img src={game.image} alt="" />
-                <div className="game-title">
-                  <strong>{game.name}</strong>
-                  <small>Risk {game.riskScore}/100</small>
-                </div>
-                <small>{game.reviewSummary}</small>
-                <em className={game.tone}>{game.verdict}</em>
-              </button>
-            ))}
-          </div>
-          {hiddenGames.length ? (
-            <details className="more-games">
-              <summary>Show ranks 11-30</summary>
-              <div className="game-list scroll-window">
-                {hiddenGames.map((game, index) => (
-                  <button
-                    key={game.appId}
-                    type="button"
-                    className={`game-row compact ${selected?.appId === game.appId ? "selected" : ""}`}
-                    onClick={() => selectGame(game)}
-                  >
-                    <span className="rank-badge">{index + 11}</span>
-                    <img src={game.image} alt="" />
-                    <div className="game-title">
-                      <strong>{game.name}</strong>
-                      <small>Risk {game.riskScore}/100</small>
-                    </div>
-                    <small>{game.reviewSummary}</small>
-                    <em className={game.tone}>{game.verdict}</em>
-                  </button>
-                ))}
-              </div>
-            </details>
-          ) : null}
-        </section>
-
-        <aside className={`verdict-panel ${highlighted?.tone || "watch"}`}>
-          <p className="eyebrow">Before you buy</p>
-          <strong>{highlighted?.name || "Choose a game"}</strong>
-          <span>{highlighted ? `${highlighted.price} · ${highlighted.reviewSummary}` : "Select a top game to inspect its free summary."}</span>
-          <div className="selected-meta">
-            <div>
-              <span>Risk score</span>
-              <strong>{highlighted?.riskScore ?? "--"}</strong>
-            </div>
-            <div>
-              <span>Buy verdict</span>
-              <strong>{highlighted?.verdict || "Pick a game"}</strong>
-            </div>
-          </div>
-          {highlighted ? (
-            <>
-              <div className="mini-signals">
-                {(highlighted.topSignals.length ? highlighted.topSignals : ["No major public red flags"]).map((signal) => (
-                  <span key={signal}>{signal}</span>
-                ))}
-              </div>
-              <div className="conversion-list">
-                <span>Steam reviews</span>
-                <span>Public backlash</span>
-                <span>Refund clues</span>
-              </div>
-              <button type="button" onClick={() => selectGame(highlighted)} disabled={reportBusy}>
-                {reportBusy ? "Checking access..." : "Open buyer report"}
-              </button>
-            </>
-          ) : null}
-        </aside>
-      </section>
-
-      <section id="pricing" className="pricing-page">
+      {showPricing ? (
+      <section className="pricing-page">
         <div className="section-heading">
           <p className="eyebrow">Pricing</p>
           <h2>Choose one report or unlock the full Steam research workflow.</h2>
@@ -783,7 +855,7 @@ export default function Home() {
             <p className="eyebrow">Free preview</p>
             <h2>$0</h2>
             <p>View daily Top 30 rankings, risk scores, public mood charts, and limited preview analysis.</p>
-            <a className="link-button secondary-action" href="#analysis">
+            <a className="link-button secondary-action" href="/reviews">
               Browse free previews
             </a>
           </article>
@@ -799,14 +871,15 @@ export default function Home() {
             <p className="eyebrow">Monthly access</p>
             <h2>$12.99/mo</h2>
             <p>Best for Steam sales, wishlist reviews, and repeated purchase decisions across many games.</p>
-            <a className="link-button primary-action" href="#account">
+            <a className="link-button primary-action" href="/account">
               Create account
             </a>
           </article>
         </div>
       </section>
+      ) : null}
 
-      {paywall ? (
+      {(showReviews || showPricing) && paywall ? (
         <section className="pricing-grid checkout-pricing" aria-label="Checkout plans">
           <article className="price-card">
             <p className="eyebrow">One game, one clean answer</p>
@@ -846,7 +919,7 @@ export default function Home() {
         </section>
       ) : null}
 
-      {report ? (
+      {showReviews && report ? (
         <>
           <section className="game-summary">
             <div className="game-art">{report.game.image ? <img src={report.game.image} alt="" /> : null}</div>
@@ -1093,10 +1166,20 @@ export default function Home() {
           <p>Daily Steam review analysis, social signal summaries, and safer buying advice for PC players.</p>
         </div>
         <nav aria-label="Footer navigation">
-          <a href="#home">Home</a>
-          <a href="#analysis">Review Analysis</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#account">Register / Login</a>
+          <a href="/">Home</a>
+          <a href="/reviews">Review Analysis</a>
+          <a href="/pricing">Pricing</a>
+          <a href="/account">Register / Login</a>
+          <a href="/about">About</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/contact">Contact</a>
+        </nav>
+        <nav aria-label="Social links">
+          <a href="https://www.reddit.com/search/?q=Steam%20reviews" target="_blank" rel="noreferrer">Reddit</a>
+          <a href="https://www.youtube.com/results?search_query=Steam+game+reviews" target="_blank" rel="noreferrer">YouTube</a>
+          <a href="https://www.tiktok.com/search?q=steam%20game%20reviews" target="_blank" rel="noreferrer">TikTok</a>
+          <a href="https://www.instagram.com/explore/search/keyword/?q=steam%20games" target="_blank" rel="noreferrer">Instagram</a>
         </nav>
         <small>
           Steam Guardrail is an independent purchase-assistance tool and is not affiliated with Valve, Steam, Reddit,
@@ -1105,4 +1188,8 @@ export default function Home() {
       </footer>
     </main>
   );
+}
+
+export default function Home() {
+  return <SteamGuardrailApp page="home" />;
 }
