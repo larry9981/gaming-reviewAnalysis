@@ -457,6 +457,8 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
   const genres = details.genres?.map((item) => item.description || "").filter(Boolean) || [];
   const categories = details.categories?.map((item) => item.description || "").filter(Boolean) || [];
 
+  const gameName = details.name || `Steam App ${appId}`;
+
   const topComplaints = [
     ["Performance / bugs", /crash|stutter|performance|optimization|bug|broken|fps|freeze|unplayable/i],
     ["Refund / regret", /refund|refunded|not worth|regret|don't buy|do not buy|avoid|scam/i],
@@ -483,7 +485,7 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
       sentiment: sentimentLabel(steamPositiveRatio),
       score: percentScore(steamPositiveRatio),
       volume: reviewSummary?.total_reviews || 0,
-      summary: `${reviewSummary?.description || "Unknown"} across ${reviewSummary?.total_reviews?.toLocaleString("en-US") || "unknown"} public Steam reviews.`,
+      summary: `${reviewSummary?.review_score_desc || "Unknown"} across ${reviewSummary?.total_reviews?.toLocaleString("en-US") || "unknown"} public Steam reviews.`,
       source: "Steam public reviews",
       url: `https://store.steampowered.com/app/${appId}`,
     },
@@ -496,7 +498,7 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
         ? `${redditPosts.length} public Reddit threads found; ${redditRiskHits} contain refund, bug, crash, or avoid language.`
         : "Reddit public search returned limited data for this title.",
       source: redditPosts.length ? "Reddit public search" : "Reddit search limited",
-      url: `https://www.reddit.com/search/?q=${encodeURIComponent(`${details.name} Steam review bug refund worth it`)}`,
+      url: `https://www.reddit.com/search/?q=${encodeURIComponent(`${gameName} Steam review bug refund worth it`)}`,
     },
     {
       platform: "YouTube" as const,
@@ -505,7 +507,7 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
       volume: Math.max(12, Math.round((reviewSummary?.total_reviews || 1000) / 180)),
       summary: "Modeled from public review strength and risk language. Use linked search to compare gameplay footage and review videos.",
       source: "Modeled signal + search link",
-      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${details.name} review gameplay Steam`)}`,
+      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${gameName} review gameplay Steam`)}`,
     },
     {
       platform: "TikTok" as const,
@@ -514,7 +516,7 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
       volume: Math.max(8, Math.round((reviewSummary?.total_reviews || 1000) / 260)),
       summary: "Modeled short-form buzz signal. Useful for hype detection, clips, glitches, and first-impression complaints.",
       source: "Modeled signal + search link",
-      url: `https://www.tiktok.com/search?q=${encodeURIComponent(`${details.name} game review`)}`,
+      url: `https://www.tiktok.com/search?q=${encodeURIComponent(`${gameName} game review`)}`,
     },
     {
       platform: "Facebook" as const,
@@ -523,7 +525,7 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
       volume: Math.max(6, Math.round((reviewSummary?.total_reviews || 1000) / 320)),
       summary: "Modeled broad-community signal. Best used for group complaints, deal comments, and casual-player reactions.",
       source: "Modeled signal + search link",
-      url: `https://www.facebook.com/search/top?q=${encodeURIComponent(`${details.name} game review`)}`,
+      url: `https://www.facebook.com/search/top?q=${encodeURIComponent(`${gameName} game review`)}`,
     },
     {
       platform: "Instagram" as const,
@@ -532,7 +534,7 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
       volume: Math.max(6, Math.round((reviewSummary?.total_reviews || 1000) / 300)),
       summary: "Modeled visual buzz signal. Useful for trailer reception, aesthetic appeal, cosplay/fan-art momentum, and creator posts.",
       source: "Modeled signal + search link",
-      url: `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(details.name)}`,
+      url: `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(gameName)}`,
     },
   ];
   const positive = Math.round(platformFeedback.reduce((sum, item) => sum + item.score, 0) / platformFeedback.length);
@@ -545,7 +547,7 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
     negative: Math.round((negative / totalBreakdown) * 100),
   };
   const contentBrief = buildContentBrief({
-    name: details.name,
+    name: gameName,
     shortDescription: details.short_description,
     about: details.about_the_game,
     genres,
@@ -557,7 +559,7 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
   return {
     appId,
     game: {
-      name: details.name,
+      name: gameName,
       image: details.header_image,
       developers: details.developers || [],
       publishers: details.publishers || [],

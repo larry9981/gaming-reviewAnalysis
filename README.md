@@ -93,8 +93,38 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 
 - `npm run dev`: start local development
 - `npm run build`: verify the vinext build output
+- `npm run build:render`: switch to the Render/Postgres adapters and verify the Next.js build used by Render
+- `npm run start:render`: start the Render-compatible Next.js server on `$PORT`
 - `npm test`: build the starter and verify its rendered loading skeleton
 - `npm run db:generate`: generate Drizzle migrations after schema changes
+
+## GitHub + Render Deployment
+
+This repository supports two deployment paths:
+
+- Cloudflare/Sites: the current production path, using `vinext`, Cloudflare Workers, and D1.
+- Render: a GitHub-connected Web Service using Next.js and Render Postgres.
+
+Render uses `render.yaml` at the repo root. When Render builds the service, `scripts/prepare-render.mjs`
+temporarily swaps the Cloudflare-specific data/payment modules for Node/Postgres adapters from
+`render/adapters/`, then runs `next build`.
+
+Recommended Render setup:
+
+1. Push this repository to GitHub.
+2. In Render, create a new Blueprint from the GitHub repository.
+3. Let Render provision `steam-guardrail-db` Postgres from `render.yaml`.
+4. Set the `sync: false` secrets in the Render dashboard:
+   - `ADMIN_EMAILS`
+   - `PAYPAL_CLIENT_ID`
+   - `PAYPAL_CLIENT_SECRET`
+   - `PAYPAL_MONTHLY_PLAN_ID`
+   - `STRIPE_SECRET_KEY`
+   - `STRIPE_WEBHOOK_SECRET`
+   - `RESET_PASSWORD_WEBHOOK_URL` if password reset email delivery is connected
+5. Deploy. Render will run `pnpm run build:render` and `pnpm run start:render`.
+
+The Render app reads `DATABASE_URL` from the managed Postgres instance and creates its required tables on first use.
 
 ## Learn More
 
