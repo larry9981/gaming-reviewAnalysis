@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@airwallex/components-sdk':
+        specifier: ^1.32.0
+        version: 1.32.0
       '@types/pg':
         specifier: ^8.20.0
         version: 8.20.0
@@ -77,6 +80,12 @@ importers:
         version: 4.92.0
 
 packages:
+
+  '@airwallex/airtracker@3.2.0':
+    resolution: {integrity: sha512-PKE5N38ajTVg6ph9JzLpWsICNjqLtf/wWudNVU3UPX9SVy2I5s5ITc281sMSD8+LIE6RJoGjGTO+VYP/io5kig==}
+
+  '@airwallex/components-sdk@1.32.0':
+    resolution: {integrity: sha512-IRrYOyCIWw/cQcndm/n11zx8b7hj2wYF7TD2YLmds9lXIQoir214JF99i1QJAyMsRR//nIRkNFTB2Ta2/etYGw==}
 
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
@@ -3615,6 +3624,12 @@ packages:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
+
+  '@airwallex/airtracker@3.2.0': {}
+
+  '@airwallex/components-sdk@1.32.0':
+    dependencies:
+      '@airwallex/airtracker': 3.2.0
 
   '@alloc/quick-lru@5.2.0': {}
 

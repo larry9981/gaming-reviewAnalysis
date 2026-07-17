@@ -158,7 +158,9 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
   const [authMode, setAuthMode] = useState<"login" | "register" | "forgot" | "reset">("register");
   const [authBusy, setAuthBusy] = useState(false);
-  const [checkoutBusy, setCheckoutBusy] = useState<"single-stripe" | "single-paypal" | "monthly-stripe" | "monthly-paypal" | null>(null);
+  const [checkoutBusy, setCheckoutBusy] = useState<
+    "single-stripe" | "single-paypal" | "single-airwallex" | "monthly-stripe" | "monthly-paypal" | "monthly-airwallex" | null
+  >(null);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -236,6 +238,21 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     }
   }
 
+  async function verifyAirwallex(intentId: string) {
+    const response = await fetch("/api/airwallex/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ intentId }),
+    });
+    const data = await response.json();
+    if (response.ok) {
+      setMessage("Card payment confirmed. Your full reports are unlocked.");
+      await loadMe();
+    } else {
+      setMessage(data.error || "Card payment confirmation is still pending.");
+    }
+  }
+
   useEffect(() => {
     loadMe();
     loadTrending();
@@ -255,6 +272,15 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     }
     if (params.get("paypal") === "cancelled") {
       setMessage("PayPal checkout cancelled. No charge was made.");
+      window.history.replaceState({}, "", "/");
+    }
+    const airwallexIntentId = params.get("intent_id");
+    if (params.get("airwallex") === "success" && airwallexIntentId) {
+      verifyAirwallex(airwallexIntentId);
+      window.history.replaceState({}, "", "/");
+    }
+    if (params.get("airwallex") === "cancelled") {
+      setMessage("Card checkout cancelled. No charge was made.");
       window.history.replaceState({}, "", "/");
     }
     const appId = params.get("app");
@@ -316,7 +342,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       }
       setUser(data.user);
       setPassword("");
-      setMessage("You are signed in. You can continue to PayPal checkout.");
+      setMessage("You are signed in. You can continue to checkout.");
       await loadMe();
     } catch {
       setMessage("Authentication failed. Please check your connection and try again.");
@@ -394,21 +420,44 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     document.querySelector(".pricing-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  async function checkout(plan: "single" | "monthly", appId?: string, provider: "stripe" | "paypal" = "stripe") {
+  async function checkout(plan: "single" | "monthly", appId?: string, provider: "stripe" | "paypal" | "airwallex" = "stripe") {
     if (!user) {
-      setMessage("Create an account or log in before checkout. Your PayPal window opens after sign in.");
+      setMessage("Create an account or log in before checkout.");
       return;
     }
     const busyKey = `${plan}-${provider}` as typeof checkoutBusy;
     setCheckoutBusy(busyKey);
     setMessage(provider === "paypal" ? "Opening PayPal checkout..." : "Opening card checkout...");
     try {
-      const response = await fetch(provider === "paypal" ? "/api/paypal/checkout" : "/api/checkout", {
+      const endpoint =
+        provider === "paypal" ? "/api/paypal/checkout" : provider === "airwallex" ? "/api/airwallex/checkout" : "/api/checkout";
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan, appId: appId || selected?.appId || paywall?.appId }),
       });
       const data = await response.json().catch(() => ({ error: "Checkout could not start. Please try again." }));
+      if (provider === "airwallex") {
+        if (!response.ok || !data.id || !data.clientSecret) {
+          setMessage(data.error || "Card checkout could not start.");
+          return;
+        }
+        const { init } = await import("@airwallex/components-sdk");
+        const { payments } = await init({
+          env: data.env || "prod",
+          enabledElements: ["payments"],
+        });
+        if (!payments) throw new Error("Airwallex payment page is unavailable.");
+        payments.redirectToCheckout({
+          intent_id: data.id,
+          client_secret: data.clientSecret,
+          currency: data.currency || "USD",
+          country_code: "US",
+          methods: ["card"],
+          successUrl: data.successUrl,
+        });
+        return;
+      }
       if (!response.ok || !data.checkoutUrl) {
         setMessage(data.error || "Checkout could not start.");
         return;
@@ -902,8 +951,11 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             <p className="eyebrow">One game, one clean answer</p>
             <h2>$19.90</h2>
             <p>Unlock the complete buy-or-skip report for Steam App {paywall.appId}. Best when one expensive game is on your mind.</p>
+            <button type="button" onClick={() => checkout("single", paywall.appId, "airwallex")} disabled={checkoutBusy !== null}>
+              {checkoutBusy === "single-airwallex" ? "Opening card..." : "Credit card"}
+            </button>
             <button type="button" onClick={() => checkout("single", paywall.appId, "stripe")} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "single-stripe" ? "Opening..." : "Pay by card"}
+              {checkoutBusy === "single-stripe" ? "Opening Stripe..." : "Stripe"}
             </button>
             <button type="button" onClick={() => checkout("single", paywall.appId, "paypal")} disabled={checkoutBusy !== null}>
               {checkoutBusy === "single-paypal" ? "Opening PayPal..." : "PayPal"}
@@ -913,8 +965,11 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             <p className="eyebrow">Best for Steam sale season</p>
             <h2>$12.99/mo</h2>
             <p>Unlimited full reports while your subscription remains active. Compare wishlisted games before every checkout.</p>
+            <button type="button" onClick={() => checkout("monthly", paywall.appId, "airwallex")} disabled={checkoutBusy !== null}>
+              {checkoutBusy === "monthly-airwallex" ? "Opening card..." : "Credit card"}
+            </button>
             <button type="button" onClick={() => checkout("monthly", paywall.appId, "stripe")} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "monthly-stripe" ? "Opening..." : "Subscribe by card"}
+              {checkoutBusy === "monthly-stripe" ? "Opening Stripe..." : "Stripe subscription"}
             </button>
             <button type="button" onClick={() => checkout("monthly", paywall.appId, "paypal")} disabled={checkoutBusy !== null}>
               {checkoutBusy === "monthly-paypal" ? "Opening PayPal..." : "Subscribe with PayPal"}
@@ -923,14 +978,18 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           <article className="price-card">
             <p className="eyebrow">Payment methods</p>
             <h2>Cards + PayPal</h2>
-            <p>PayPal is connected for real checkout. Credit card buttons use Stripe Checkout after Stripe keys are added.</p>
+            <p>Airwallex handles live card checkout, with PayPal and Stripe kept as additional provider options.</p>
+            <div className="method-row">
+              <span>Credit cards</span>
+              <strong>Airwallex Live</strong>
+            </div>
             <div className="method-row">
               <span>PayPal</span>
               <strong>Live</strong>
             </div>
             <div className="method-row muted">
-              <span>Cards</span>
-              <strong>Needs Stripe keys</strong>
+              <span>Stripe</span>
+              <strong>Optional</strong>
             </div>
           </article>
         </section>

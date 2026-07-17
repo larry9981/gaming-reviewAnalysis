@@ -119,12 +119,21 @@ Recommended Render setup:
    - `PAYPAL_CLIENT_ID`
    - `PAYPAL_CLIENT_SECRET`
    - `PAYPAL_MONTHLY_PLAN_ID`
+   - `AIRWALLEX_ENV` (`prod` for live, `demo` for sandbox)
+   - `AIRWALLEX_CLIENT_ID`
+   - `AIRWALLEX_API_KEY`
+   - `AIRWALLEX_ACCOUNT_ID` if your API key requires `x-login-as`
+   - `AIRWALLEX_CURRENCY` (`USD` by default)
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
    - `RESET_PASSWORD_WEBHOOK_URL` if password reset email delivery is connected
 5. Deploy. Render will run `pnpm run build:render` and `pnpm run start:render`.
 
 The Render app reads `DATABASE_URL` from the managed Postgres instance and creates its required tables on first use.
+
+Airwallex card checkout uses the Hosted Payment Page flow: the server creates a PaymentIntent, the browser redirects
+through the official Airwallex Components SDK, and the app verifies the PaymentIntent before granting access. Store
+Airwallex API credentials only in deployment environment variables.
 
 ## Learn More
 

@@ -32,6 +32,16 @@ services:
         sync: false
       - key: PAYPAL_MONTHLY_PLAN_ID
         sync: false
+      - key: AIRWALLEX_ENV
+        value: prod
+      - key: AIRWALLEX_CLIENT_ID
+        sync: false
+      - key: AIRWALLEX_API_KEY
+        sync: false
+      - key: AIRWALLEX_ACCOUNT_ID
+        sync: false
+      - key: AIRWALLEX_CURRENCY
+        value: USD
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
