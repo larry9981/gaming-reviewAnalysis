@@ -21,7 +21,11 @@ async function paypalAccessToken() {
   });
   const data = (await response.json()) as { access_token?: string; error_description?: string };
   if (!response.ok || !data.access_token) {
-    throw new Error(data.error_description || "Could not authenticate with PayPal.");
+    const message =
+      data.error_description === "Client Authentication failed"
+        ? "PayPal credentials are not accepted. Check that PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET are from the same Live PayPal app."
+        : data.error_description || "Could not authenticate with PayPal.";
+    throw new Error(message);
   }
   return data.access_token;
 }
