@@ -116,6 +116,10 @@ function formatNumber(value?: number | null) {
   return typeof value === "number" ? value.toLocaleString("en-US") : "Unknown";
 }
 
+function formatScore(value: number) {
+  return Math.round(value);
+}
+
 type SitePage = "home" | "reviews" | "pricing" | "account";
 
 const heroSlides = [
@@ -1015,17 +1019,18 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 <h2>Platform feedback bars</h2>
               </div>
               <div className="bar-list">
-                {report.platformFeedback.map((item) =>
-                  reportLocked ? (
+                {report.platformFeedback.map((item) => {
+                  const score = formatScore(item.score);
+                  return reportLocked ? (
                     <button key={item.platform} type="button" className="bar-item locked" onClick={openPaidPlatform}>
                       <div>
                         <strong>{item.platform}</strong>
                         <span>{item.sentiment} · Subscribe to open feedback</span>
                       </div>
-                      <div className="bar-track" aria-label={`${item.platform} score ${item.score}`}>
-                        <span style={{ width: `${item.score}%` }} />
+                      <div className="bar-track" aria-label={`${item.platform} score ${score}`}>
+                        <span style={{ width: `${score}%` }} />
                       </div>
-                      <em>{item.score}</em>
+                      <em>{score}</em>
                     </button>
                   ) : (
                     <a key={item.platform} className="bar-item" href={item.url} target="_blank" rel="noreferrer">
@@ -1033,13 +1038,13 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                         <strong>{item.platform}</strong>
                         <span>{item.sentiment} · {item.source}</span>
                       </div>
-                      <div className="bar-track" aria-label={`${item.platform} score ${item.score}`}>
-                        <span style={{ width: `${item.score}%` }} />
+                      <div className="bar-track" aria-label={`${item.platform} score ${score}`}>
+                        <span style={{ width: `${score}%` }} />
                       </div>
-                      <em>{item.score}</em>
+                      <em>{score}</em>
                     </a>
-                  ),
-                )}
+                  );
+                })}
               </div>
             </article>
           </section>

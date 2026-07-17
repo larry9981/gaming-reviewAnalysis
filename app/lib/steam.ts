@@ -285,6 +285,10 @@ function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
 }
 
+function percentScore(value: number) {
+  return Math.round(clamp(value));
+}
+
 function sentimentLabel(score: number): "Positive" | "Mixed" | "Negative" | "Watch" {
   if (score >= 70) return "Positive";
   if (score >= 48) return "Mixed";
@@ -471,13 +475,13 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
     ? Math.round(((reviewSummary.total_positive || 0) / reviewSummary.total_reviews) * 100)
     : clamp(82 - riskScore);
   const redditRiskHits = redditPosts.filter((post) => /refund|bug|crash|avoid|scam|broken|not worth/i.test(post.text)).length;
-  const redditScore = redditPosts.length ? clamp(66 - redditRiskHits * 12 + Math.min(12, redditPosts.length * 2)) : clamp(58 - riskScore / 3);
-  const socialBase = clamp(76 - riskScore + Math.min(10, (reviewSummary?.total_reviews || 0) / 5000));
+  const redditScore = redditPosts.length ? percentScore(66 - redditRiskHits * 12 + Math.min(12, redditPosts.length * 2)) : percentScore(58 - riskScore / 3);
+  const socialBase = percentScore(76 - riskScore + Math.min(10, (reviewSummary?.total_reviews || 0) / 5000));
   const platformFeedback = [
     {
       platform: "Steam" as const,
       sentiment: sentimentLabel(steamPositiveRatio),
-      score: steamPositiveRatio,
+      score: percentScore(steamPositiveRatio),
       volume: reviewSummary?.total_reviews || 0,
       summary: `${reviewSummary?.description || "Unknown"} across ${reviewSummary?.total_reviews?.toLocaleString("en-US") || "unknown"} public Steam reviews.`,
       source: "Steam public reviews",
@@ -497,7 +501,7 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
     {
       platform: "YouTube" as const,
       sentiment: sentimentLabel(socialBase + 4),
-      score: clamp(socialBase + 4),
+      score: percentScore(socialBase + 4),
       volume: Math.max(12, Math.round((reviewSummary?.total_reviews || 1000) / 180)),
       summary: "Modeled from public review strength and risk language. Use linked search to compare gameplay footage and review videos.",
       source: "Modeled signal + search link",
@@ -506,7 +510,7 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
     {
       platform: "TikTok" as const,
       sentiment: sentimentLabel(socialBase - 2),
-      score: clamp(socialBase - 2),
+      score: percentScore(socialBase - 2),
       volume: Math.max(8, Math.round((reviewSummary?.total_reviews || 1000) / 260)),
       summary: "Modeled short-form buzz signal. Useful for hype detection, clips, glitches, and first-impression complaints.",
       source: "Modeled signal + search link",
@@ -515,7 +519,7 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
     {
       platform: "Facebook" as const,
       sentiment: sentimentLabel(socialBase - 6),
-      score: clamp(socialBase - 6),
+      score: percentScore(socialBase - 6),
       volume: Math.max(6, Math.round((reviewSummary?.total_reviews || 1000) / 320)),
       summary: "Modeled broad-community signal. Best used for group complaints, deal comments, and casual-player reactions.",
       source: "Modeled signal + search link",
