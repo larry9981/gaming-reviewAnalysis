@@ -136,6 +136,7 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [resetToken, setResetToken] = useState("");
+  const [newsletterEmail, setNewsletterEmail] = useState("");
   const [admin, setAdmin] = useState<{
     users: number;
     activeEntitlements: number;
@@ -146,6 +147,8 @@ export default function Home() {
   const highlighted = useMemo(() => selected || games[0] || null, [games, selected]);
   const visibleGames = useMemo(() => games.slice(0, 10), [games]);
   const hiddenGames = useMemo(() => games.slice(10), [games]);
+  const bannerGames = useMemo(() => games.filter((game) => game.image).slice(0, 3), [games]);
+  const topFiveGames = useMemo(() => games.slice(0, 5), [games]);
 
   async function loadMe() {
     const response = await fetch("/api/me");
@@ -383,9 +386,133 @@ export default function Home() {
     setAdmin(data);
   }
 
+  function subscribeNewsletter() {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newsletterEmail.trim())) {
+      setMessage("Enter a valid email to receive Steam Guardrail updates.");
+      return;
+    }
+    setMessage("You are on the update list. Newsletter delivery will be connected when email service is configured.");
+    setNewsletterEmail("");
+  }
+
   return (
     <main className="app-shell">
-      <section className="hero-band product-hero">
+      <header className="site-header">
+        <a className="brand-mark" href="#home" aria-label="Steam Guardrail home">
+          Steam Guardrail
+        </a>
+        <nav className="site-nav" aria-label="Primary navigation">
+          <a href="#home">Home</a>
+          <a href="#analysis">Review Analysis</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#account">Register / Login</a>
+        </nav>
+      </header>
+
+      <section id="home" className="home-page">
+        <div className="home-hero">
+          <div className="home-copy">
+            <p className="eyebrow">Independent Steam review intelligence</p>
+            <h1>Steam game reviews, risk scores, and buying advice before checkout.</h1>
+            <p className="subcopy">
+              Steam Guardrail helps PC players compare trending games with public reviews, social discussion signals,
+              refund-risk language, DRM warnings, and gameplay-fit analysis before spending money.
+            </p>
+            <div className="hero-actions">
+              <a className="primary-action link-button" href="#analysis">
+                Start review analysis
+              </a>
+              <a className="secondary-action link-button" href="#pricing">
+                View pricing
+              </a>
+            </div>
+          </div>
+          <div className="banner-grid" aria-label="Featured game review banners">
+            {(bannerGames.length ? bannerGames : topFiveGames).slice(0, 3).map((game, index) => (
+              <button key={game.appId || index} type="button" className="banner-tile" onClick={() => selectGame(game)}>
+                {game.image ? <img src={game.image} alt={`${game.name} review banner`} /> : null}
+                <span>#{index + 1} Trending review</span>
+                <strong>{game.name}</strong>
+                <em>{game.verdict}</em>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <section className="home-section">
+          <div className="section-heading">
+            <p className="eyebrow">Today&apos;s top 5</p>
+            <h2>Fast buying analysis for trending Steam games</h2>
+            <p>
+              These summaries update daily from Steam top sellers and public review signals. Open any game for a preview,
+              then subscribe to unlock full platform feedback and detailed gameplay analysis.
+            </p>
+          </div>
+          <div className="top-five-grid">
+            {topFiveGames.map((game, index) => (
+              <article key={game.appId} className="top-five-card">
+                <button type="button" onClick={() => selectGame(game)}>
+                  {game.image ? <img src={game.image} alt={`${game.name} Steam review`} /> : null}
+                  <span>#{index + 1}</span>
+                  <strong>{game.name}</strong>
+                  <small>{game.reviewSummary} · Risk {game.riskScore}/100</small>
+                  <em className={game.tone}>{game.verdict}</em>
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="newsletter-panel">
+          <div>
+            <p className="eyebrow">Weekly buyer briefing</p>
+            <h2>Get Steam sale warnings and review-bomb alerts by email.</h2>
+            <p>
+              Receive curated Steam review analysis, top risk signals, refund-window reminders, and buying advice for
+              popular PC games. No spam; only product updates and game-purchase research.
+            </p>
+          </div>
+          <div className="newsletter-form">
+            <input
+              value={newsletterEmail}
+              onChange={(event) => setNewsletterEmail(event.target.value)}
+              placeholder="player@example.com"
+              aria-label="Newsletter email"
+            />
+            <button type="button" onClick={subscribeNewsletter}>
+              Subscribe
+            </button>
+          </div>
+        </section>
+
+        <section className="seo-copy">
+          <article>
+            <h2>Why Steam Guardrail exists</h2>
+            <p>
+              Many Steam games look great in trailers but hide problems in recent reviews: unstable performance,
+              aggressive monetization, launcher friction, server issues, or disappointing endgame depth. Steam Guardrail
+              organizes these signals into plain-English buying advice.
+            </p>
+          </article>
+          <article>
+            <h2>What our analysis includes</h2>
+            <p>
+              Each report combines Steam review sentiment, public Reddit discussion, modeled creator-platform feedback,
+              risk scoring, genre fit, story overview, gameplay tips, and source links so players can make a calmer
+              purchase decision.
+            </p>
+          </article>
+          <article>
+            <h2>Editorial policy</h2>
+            <p>
+              We do not sell games or guarantee quality. Reports are purchase-assistance summaries based on available
+              public signals. Players should still check hardware requirements, refund rules, and recent review dates.
+            </p>
+          </article>
+        </section>
+      </section>
+
+      <section id="analysis" className="hero-band product-hero">
         <div className="hero-copy">
           <p className="eyebrow">Daily Steam intelligence</p>
           <h1>Don&apos;t buy your next regret.</h1>
@@ -424,7 +551,7 @@ export default function Home() {
           {message ? <div className="error-box neutral">{message}</div> : null}
         </div>
 
-        <aside className="auth-panel">
+        <aside id="account" className="auth-panel">
           <p className="eyebrow">Player account</p>
           {user ? (
             <>
@@ -642,8 +769,45 @@ export default function Home() {
         </aside>
       </section>
 
+      <section id="pricing" className="pricing-page">
+        <div className="section-heading">
+          <p className="eyebrow">Pricing</p>
+          <h2>Choose one report or unlock the full Steam research workflow.</h2>
+          <p>
+            Free visitors can preview game risk scores and limited review signals. Paid access unlocks detailed platform
+            feedback, Steam review samples, Reddit discussions, gameplay tips, and full buy-or-skip analysis.
+          </p>
+        </div>
+        <div className="pricing-grid">
+          <article className="price-card">
+            <p className="eyebrow">Free preview</p>
+            <h2>$0</h2>
+            <p>View daily Top 30 rankings, risk scores, public mood charts, and limited preview analysis.</p>
+            <a className="link-button secondary-action" href="#analysis">
+              Browse free previews
+            </a>
+          </article>
+          <article className="price-card">
+            <p className="eyebrow">Single game report</p>
+            <h2>$19.90</h2>
+            <p>Unlock one complete report for a specific Steam game before you buy.</p>
+            <button type="button" onClick={() => highlighted && openReport(highlighted.appId)}>
+              Check selected game
+            </button>
+          </article>
+          <article className="price-card featured">
+            <p className="eyebrow">Monthly access</p>
+            <h2>$12.99/mo</h2>
+            <p>Best for Steam sales, wishlist reviews, and repeated purchase decisions across many games.</p>
+            <a className="link-button primary-action" href="#account">
+              Create account
+            </a>
+          </article>
+        </div>
+      </section>
+
       {paywall ? (
-        <section className="pricing-grid">
+        <section className="pricing-grid checkout-pricing" aria-label="Checkout plans">
           <article className="price-card">
             <p className="eyebrow">One game, one clean answer</p>
             <h2>$19.90</h2>
@@ -922,6 +1086,23 @@ export default function Home() {
           </section>
         </>
       ) : null}
+
+      <footer className="site-footer">
+        <div>
+          <strong>Steam Guardrail</strong>
+          <p>Daily Steam review analysis, social signal summaries, and safer buying advice for PC players.</p>
+        </div>
+        <nav aria-label="Footer navigation">
+          <a href="#home">Home</a>
+          <a href="#analysis">Review Analysis</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#account">Register / Login</a>
+        </nav>
+        <small>
+          Steam Guardrail is an independent purchase-assistance tool and is not affiliated with Valve, Steam, Reddit,
+          YouTube, TikTok, Facebook, or Instagram.
+        </small>
+      </footer>
     </main>
   );
 }
