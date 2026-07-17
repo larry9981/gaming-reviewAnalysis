@@ -280,6 +280,48 @@ h1 {
   padding: 12px;
 }
 
+.account-box,
+.account-list div {
+  background: #080b10;
+  border: 1px solid #344152;
+  border-radius: 8px;
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+}
+
+.account-box span,
+.account-list span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.account-box strong {
+  font-size: 28px;
+}
+
+.account-list {
+  display: grid;
+  gap: 8px;
+}
+
+.account-list div {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.account-list strong {
+  color: var(--green);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.account-links {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr;
+}
+
 .tab-row {
   display: grid;
   gap: 8px;
@@ -665,16 +707,30 @@ button:hover {
 .admin-strip {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.admin-strip div {
+.admin-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-strip div,
+.export-link {
   background: rgba(18, 26, 37, 0.92);
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
   gap: 6px;
   padding: 18px;
+}
+
+.export-link {
+  align-content: center;
+  color: #dff7ff;
+  display: grid;
+  font-weight: 900;
+  text-decoration: none;
 }
 
 .admin-strip span {
@@ -684,6 +740,50 @@ button:hover {
 
 .admin-strip strong {
   font-size: 28px;
+}
+
+.admin-tables {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.admin-tables article {
+  background: rgba(18, 22, 30, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.table-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.table-list div {
+  align-items: center;
+  background: #0d141e;
+  border: 1px solid #263649;
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+.table-list span {
+  color: #c2d0dd;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.table-list strong {
+  color: var(--green);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .game-list {
@@ -848,6 +948,28 @@ button:hover {
   display: grid;
   gap: 18px;
   grid-template-columns: minmax(260px, 0.45fr) minmax(0, 1fr);
+}
+
+.locked-strip {
+  align-items: center;
+  background: rgba(245, 196, 78, 0.08);
+  border: 1px solid rgba(245, 196, 78, 0.32);
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 20px;
+}
+
+.locked-strip h2 {
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.locked-strip p:not(.eyebrow) {
+  color: #d6caaa;
+  line-height: 1.5;
+  margin-top: 8px;
 }
 
 .chart-card {
@@ -1231,6 +1353,11 @@ input[type="range"] {
   .game-summary,
   .pricing-grid,
   .admin-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-tables,
+  .locked-strip {
     grid-template-columns: 1fr;
   }
 

@@ -5,6 +5,7 @@ type D1Database = typeof env.DB;
 export type AuthUser = {
   id: string;
   email: string;
+  username?: string | null;
   role: string;
 };
 
@@ -21,7 +22,7 @@ export async function ensureSchema() {
   const db = getD1();
   await db.batch([
     db.prepare(
-      "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user', created_at INTEGER NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, username TEXT, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user', created_at INTEGER NOT NULL)",
     ),
     db.prepare(
       "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL)",
@@ -38,10 +39,14 @@ export async function ensureSchema() {
     db.prepare(
       "CREATE TABLE IF NOT EXISTS trending_cache (cache_key TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at INTEGER NOT NULL)",
     ),
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS password_resets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, token_hash TEXT NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER, created_at INTEGER NOT NULL)",
+    ),
     db.prepare("CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS entitlements_user_idx ON entitlements (user_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS checkout_provider_idx ON checkout_sessions (provider_session_id)"),
   ]);
+  await db.prepare("ALTER TABLE users ADD COLUMN username TEXT").run().catch(() => undefined);
 }
 
 export function randomId(prefix: string) {
@@ -104,7 +109,7 @@ export async function getCurrentUser(request: Request): Promise<AuthUser | null>
   const now = Date.now();
   const row = await getD1()
     .prepare(
-      "SELECT users.id, users.email, users.role FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.id = ? AND sessions.expires_at > ?",
+      "SELECT users.id, users.email, users.username, users.role FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.id = ? AND sessions.expires_at > ?",
     )
     .bind(sessionId, now)
     .first<AuthUser>();

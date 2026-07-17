@@ -6,7 +6,17 @@ import type { CSSProperties } from "react";
 type User = {
   id: string;
   email: string;
+  username?: string | null;
   role: string;
+};
+
+type Entitlement = {
+  kind: string;
+  appId?: string | null;
+  status: string;
+  provider?: string;
+  currentPeriodEnd?: number | null;
+  createdAt: number;
 };
 
 type TopGame = {
@@ -98,6 +108,7 @@ type AnalysisResult = {
 
 type Paywall = {
   appId: string;
+  preview?: AnalysisResult;
   plans: { id: "single" | "monthly"; label: string; price: string; appId?: string }[];
 };
 
@@ -112,16 +123,25 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [selected, setSelected] = useState<TopGame | null>(null);
   const [report, setReport] = useState<AnalysisResult | null>(null);
+  const [reportLocked, setReportLocked] = useState(false);
   const [reportBusy, setReportBusy] = useState(false);
   const [paywall, setPaywall] = useState<Paywall | null>(null);
   const [message, setMessage] = useState("");
   const [user, setUser] = useState<User | null>(null);
-  const [authMode, setAuthMode] = useState<"login" | "register">("register");
+  const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
+  const [authMode, setAuthMode] = useState<"login" | "register" | "forgot" | "reset">("register");
   const [authBusy, setAuthBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState<"single-stripe" | "single-paypal" | "monthly-stripe" | "monthly-paypal" | null>(null);
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [admin, setAdmin] = useState<{ users: number; activeEntitlements: number } | null>(null);
+  const [resetToken, setResetToken] = useState("");
+  const [admin, setAdmin] = useState<{
+    users: number;
+    activeEntitlements: number;
+    userRows?: { id: string; email: string; username?: string | null; role: string; entitlementCount: number; createdAt: number }[];
+    entitlementRows?: { id: string; email: string; username?: string | null; kind: string; appId?: string | null; status: string; provider: string; createdAt: number }[];
+  } | null>(null);
 
   const highlighted = useMemo(() => selected || games[0] || null, [games, selected]);
   const visibleGames = useMemo(() => games.slice(0, 10), [games]);
@@ -131,6 +151,7 @@ export default function Home() {
     const response = await fetch("/api/me");
     const data = await response.json();
     setUser(data.user || null);
+    setEntitlements(data.entitlements || []);
   }
 
   async function loadTrending() {
@@ -208,10 +229,37 @@ export default function Home() {
     setMessage("");
     setAuthBusy(true);
     try {
+      if (authMode === "forgot") {
+        const response = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        const data = await response.json().catch(() => ({ error: "Password reset failed." }));
+        setMessage(data.message || data.error || "Password reset requested.");
+        return;
+      }
+      if (authMode === "reset") {
+        const response = await fetch("/api/auth/reset-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: resetToken, password }),
+        });
+        const data = await response.json().catch(() => ({ error: "Password reset failed." }));
+        if (!response.ok) {
+          setMessage(data.error || "Password reset failed.");
+          return;
+        }
+        setMessage(data.message || "Password updated.");
+        setPassword("");
+        setResetToken("");
+        setAuthMode("login");
+        return;
+      }
       const response = await fetch(`/api/auth/${authMode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, email, password }),
       });
       const data = await response.json().catch(() => ({ error: "Authentication failed. Please try again." }));
       if (!response.ok) {
@@ -221,6 +269,7 @@ export default function Home() {
       setUser(data.user);
       setPassword("");
       setMessage("You are signed in. You can continue to PayPal checkout.");
+      await loadMe();
     } catch {
       setMessage("Authentication failed. Please check your connection and try again.");
     } finally {
@@ -231,8 +280,20 @@ export default function Home() {
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
+    setEntitlements([]);
     setAdmin(null);
     setMessage("Signed out.");
+  }
+
+  async function cancelSubscription() {
+    const response = await fetch("/api/account/cancel-subscription", { method: "POST" });
+    const data = await response.json().catch(() => ({ error: "Cancellation failed." }));
+    if (!response.ok) {
+      setMessage(data.error || "Cancellation failed.");
+      return;
+    }
+    setMessage(data.message || "Subscription cancelled.");
+    await loadMe();
   }
 
   async function openReport(appId = input || selected?.appId || "") {
@@ -240,6 +301,7 @@ export default function Home() {
     if (!clean) return;
     setMessage("");
     setReport(null);
+    setReportLocked(false);
     setPaywall(null);
     setReportBusy(true);
     try {
@@ -251,6 +313,10 @@ export default function Home() {
       const data = await response.json().catch(() => ({ error: "Report failed." }));
       if (response.status === 402) {
         setPaywall(data);
+        if (data.preview) {
+          setReport(data.preview);
+          setReportLocked(true);
+        }
         setMessage("This game report is locked. Choose a plan to view the full analysis.");
         return;
       }
@@ -259,6 +325,7 @@ export default function Home() {
         return;
       }
       setReport(data);
+      setReportLocked(false);
       setMessage("Full report unlocked.");
     } catch {
       setMessage("Report failed. Please try again.");
@@ -355,8 +422,26 @@ export default function Home() {
           <p className="eyebrow">Player account</p>
           {user ? (
             <>
-              <strong>{user.email}</strong>
+              <strong>{user.username || user.email}</strong>
+              <span>{user.email}</span>
               <span>Your paid reports and monthly unlocks follow this account across devices.</span>
+              <div className="account-box">
+                <span>Active subscriptions</span>
+                <strong>{entitlements.filter((item) => item.status === "active" && item.kind === "monthly").length}</strong>
+              </div>
+              <div className="account-list">
+                {(entitlements.length ? entitlements : [{ kind: "free", status: "preview", createdAt: Date.now() }]).slice(0, 4).map((item, index) => (
+                  <div key={`${item.kind}-${item.appId || index}`}>
+                    <span>{item.kind}{item.appId ? ` · App ${item.appId}` : ""}</span>
+                    <strong>{item.status}</strong>
+                  </div>
+                ))}
+              </div>
+              {entitlements.some((item) => item.kind === "monthly" && item.status === "active") ? (
+                <button type="button" onClick={cancelSubscription}>
+                  Cancel subscription
+                </button>
+              ) : null}
               <button type="button" onClick={logout}>
                 Sign out
               </button>
@@ -377,25 +462,84 @@ export default function Home() {
                   Login
                 </button>
               </div>
+              {authMode === "register" ? (
+                <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username" />
+              ) : null}
+              {authMode === "reset" ? (
+                <input value={resetToken} onChange={(event) => setResetToken(event.target.value)} placeholder="Reset token" />
+              ) : null}
               <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email@example.com" />
-              <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" type="password" />
+              {authMode !== "forgot" ? (
+                <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" type="password" />
+              ) : null}
               <button type="button" onClick={auth} disabled={authBusy}>
-                {authBusy ? "Working..." : authMode === "register" ? "Create account" : "Log in"}
+                {authBusy
+                  ? "Working..."
+                  : authMode === "register"
+                    ? "Create account"
+                    : authMode === "forgot"
+                      ? "Request reset"
+                      : authMode === "reset"
+                        ? "Set new password"
+                        : "Log in"}
               </button>
+              <div className="account-links">
+                <button type="button" className="text-button" onClick={() => setAuthMode("forgot")}>
+                  Forgot password
+                </button>
+                <button type="button" className="text-button" onClick={() => setAuthMode("reset")}>
+                  I have a reset token
+                </button>
+              </div>
             </>
           )}
         </aside>
       </section>
 
       {admin ? (
-        <section className="admin-strip">
-          <div>
-            <span>Registered users</span>
-            <strong>{admin.users}</strong>
+        <section className="admin-panel">
+          <div className="admin-strip">
+            <div>
+              <span>Registered users</span>
+              <strong>{admin.users}</strong>
+            </div>
+            <div>
+              <span>Active paid entitlements</span>
+              <strong>{admin.activeEntitlements}</strong>
+            </div>
+            <a className="export-link" href="/api/admin/export" target="_blank" rel="noreferrer">
+              Export user CSV
+            </a>
           </div>
-          <div>
-            <span>Active paid entitlements</span>
-            <strong>{admin.activeEntitlements}</strong>
+          <div className="admin-tables">
+            <article>
+              <div className="panel-heading">
+                <p>Admin</p>
+                <h2>Registered users</h2>
+              </div>
+              <div className="table-list">
+                {(admin.userRows || []).slice(0, 20).map((row) => (
+                  <div key={row.id}>
+                    <span>{row.username || "No username"} · {row.email}</span>
+                    <strong>{row.entitlementCount} active</strong>
+                  </div>
+                ))}
+              </div>
+            </article>
+            <article>
+              <div className="panel-heading">
+                <p>Admin</p>
+                <h2>Paid access</h2>
+              </div>
+              <div className="table-list">
+                {(admin.entitlementRows || []).slice(0, 20).map((row) => (
+                  <div key={row.id}>
+                    <span>{row.email} · {row.kind}{row.appId ? ` · App ${row.appId}` : ""}</span>
+                    <strong>{row.status}</strong>
+                  </div>
+                ))}
+              </div>
+            </article>
           </div>
         </section>
       ) : null}
@@ -572,6 +716,19 @@ export default function Home() {
             </div>
           </section>
 
+          {reportLocked ? (
+            <section className="locked-strip">
+              <div>
+                <p className="eyebrow">Preview mode</p>
+                <h2>Register and subscribe to unlock the full report</h2>
+                <p>Preview includes the core verdict, mood chart, limited platform signals, and one review sample. Full access unlocks all reviews, Reddit threads, characters, scenes, game tips, and detailed purchase analysis.</p>
+              </div>
+              <button type="button" onClick={() => setPaywall(paywall || { appId: report.appId, plans: [] })}>
+                View plans
+              </button>
+            </section>
+          ) : null}
+
           <section className="intel-grid">
             <article className="pro-card chart-card">
               <div className="panel-heading">
@@ -618,53 +775,55 @@ export default function Home() {
             </article>
           </section>
 
-          <section className="deep-analysis">
-            <article className="pro-card">
-              <div className="panel-heading">
-                <p>Story and setup</p>
-                <h2>What the game is about</h2>
-              </div>
-              <p className="analysis-copy">{report.contentBrief.story}</p>
-              <div className="tag-row">
-                {(report.game.genres || []).slice(0, 5).map((genre) => (
-                  <span key={genre}>{genre}</span>
-                ))}
-              </div>
-            </article>
-            <article className="pro-card">
-              <div className="panel-heading">
-                <p>Characters</p>
-                <h2>Roles to watch</h2>
-              </div>
-              <ul className="clean-list">
-                {report.contentBrief.characters.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </article>
-            <article className="pro-card">
-              <div className="panel-heading">
-                <p>Scenes</p>
-                <h2>Where the fun or friction appears</h2>
-              </div>
-              <ul className="clean-list">
-                {report.contentBrief.scenes.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </article>
-            <article className="pro-card">
-              <div className="panel-heading">
-                <p>Game tips</p>
-                <h2>Before you keep it</h2>
-              </div>
-              <ul className="clean-list">
-                {report.contentBrief.tips.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </article>
-          </section>
+          {!reportLocked ? (
+            <section className="deep-analysis">
+              <article className="pro-card">
+                <div className="panel-heading">
+                  <p>Story and setup</p>
+                  <h2>What the game is about</h2>
+                </div>
+                <p className="analysis-copy">{report.contentBrief.story}</p>
+                <div className="tag-row">
+                  {(report.game.genres || []).slice(0, 5).map((genre) => (
+                    <span key={genre}>{genre}</span>
+                  ))}
+                </div>
+              </article>
+              <article className="pro-card">
+                <div className="panel-heading">
+                  <p>Characters</p>
+                  <h2>Roles to watch</h2>
+                </div>
+                <ul className="clean-list">
+                  {report.contentBrief.characters.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </article>
+              <article className="pro-card">
+                <div className="panel-heading">
+                  <p>Scenes</p>
+                  <h2>Where the fun or friction appears</h2>
+                </div>
+                <ul className="clean-list">
+                  {report.contentBrief.scenes.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </article>
+              <article className="pro-card">
+                <div className="panel-heading">
+                  <p>Game tips</p>
+                  <h2>Before you keep it</h2>
+                </div>
+                <ul className="clean-list">
+                  {report.contentBrief.tips.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </article>
+            </section>
+          ) : null}
 
           <section className="business-grid public-sources">
             <article className="pro-card">

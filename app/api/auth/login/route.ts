@@ -9,9 +9,9 @@ export async function POST(request: Request) {
     };
     const cleanEmail = (email || "").trim().toLowerCase();
     const user = await getD1()
-      .prepare("SELECT id, email, role, password_hash as passwordHash FROM users WHERE email = ?")
+      .prepare("SELECT id, email, username, role, password_hash as passwordHash FROM users WHERE email = ?")
       .bind(cleanEmail)
-      .first<{ id: string; email: string; role: string; passwordHash: string }>();
+      .first<{ id: string; email: string; username?: string | null; role: string; passwordHash: string }>();
     if (!user || !password || !(await verifyPassword(password, user.passwordHash))) {
       return json({ error: "Invalid email or password." }, 401);
     }
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       .bind(sessionId, user.id, expiresAt, now)
       .run();
     return json(
-      { user: { id: user.id, email: user.email, role: user.role } },
+      { user: { id: user.id, email: user.email, username: user.username, role: user.role } },
       200,
       { "Set-Cookie": sessionCookie(sessionId, expiresAt) },
     );
