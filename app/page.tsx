@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 
 type User = {
   id: string;
@@ -27,7 +28,15 @@ type AnalysisResult = {
   game: {
     name: string;
     image?: string;
+    developers?: string[];
+    publishers?: string[];
+    genres?: string[];
+    categories?: string[];
+    story?: string;
     price: string;
+    discount?: number;
+    releaseDate?: string;
+    comingSoon?: boolean;
     metacritic: number | null;
     recommendations: number | null;
     steamUrl: string;
@@ -63,6 +72,28 @@ type AnalysisResult = {
     error: string | null;
     searchUrl: string;
   };
+  platformFeedback: {
+    platform: "Steam" | "Reddit" | "YouTube" | "TikTok" | "Facebook" | "Instagram";
+    sentiment: "Positive" | "Mixed" | "Negative" | "Watch";
+    score: number;
+    volume: number;
+    summary: string;
+    source: string;
+    url?: string;
+  }[];
+  sentimentBreakdown: {
+    positive: number;
+    mixed: number;
+    negative: number;
+  };
+  contentBrief: {
+    story: string;
+    characters: string[];
+    scenes: string[];
+    tips: string[];
+    buyerAnalysis: string;
+  };
+  limitations: string[];
 };
 
 type Paywall = {
@@ -81,6 +112,7 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [selected, setSelected] = useState<TopGame | null>(null);
   const [report, setReport] = useState<AnalysisResult | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
   const [paywall, setPaywall] = useState<Paywall | null>(null);
   const [message, setMessage] = useState("");
   const [user, setUser] = useState<User | null>(null);
@@ -92,6 +124,8 @@ export default function Home() {
   const [admin, setAdmin] = useState<{ users: number; activeEntitlements: number } | null>(null);
 
   const highlighted = useMemo(() => selected || games[0] || null, [games, selected]);
+  const visibleGames = useMemo(() => games.slice(0, 10), [games]);
+  const hiddenGames = useMemo(() => games.slice(10), [games]);
 
   async function loadMe() {
     const response = await fetch("/api/me");
@@ -207,22 +241,36 @@ export default function Home() {
     setMessage("");
     setReport(null);
     setPaywall(null);
-    const response = await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input: clean }),
-    });
-    const data = await response.json();
-    if (response.status === 402) {
-      setPaywall(data);
-      setMessage("Full report is locked. Choose a plan to continue.");
-      return;
+    setReportBusy(true);
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: clean }),
+      });
+      const data = await response.json().catch(() => ({ error: "Report failed." }));
+      if (response.status === 402) {
+        setPaywall(data);
+        setMessage("This game report is locked. Choose a plan to view the full analysis.");
+        return;
+      }
+      if (!response.ok) {
+        setMessage(data.error || "Report failed.");
+        return;
+      }
+      setReport(data);
+      setMessage("Full report unlocked.");
+    } catch {
+      setMessage("Report failed. Please try again.");
+    } finally {
+      setReportBusy(false);
     }
-    if (!response.ok) {
-      setMessage(data.error || "Report failed.");
-      return;
-    }
-    setReport(data);
+  }
+
+  function selectGame(game: TopGame) {
+    setSelected(game);
+    setInput(game.appId);
+    openReport(game.appId);
   }
 
   async function checkout(plan: "single" | "monthly", appId?: string, provider: "stripe" | "paypal" = "stripe") {
@@ -266,14 +314,14 @@ export default function Home() {
     <main className="app-shell">
       <section className="hero-band product-hero">
         <div className="hero-copy">
-          <p className="eyebrow">Steam sale armor</p>
+          <p className="eyebrow">Daily Steam intelligence</p>
           <h1>Don&apos;t buy your next regret.</h1>
           <p className="subcopy">
             Steam Guardrail scans trending games before players spend. We surface review bombs, refund clues, DRM complaints,
             DLC traps, and social backlash so the hype does not empty your wallet.
           </p>
           <div className="hero-chips" aria-label="Product benefits">
-            <span>Top 30 scanned live</span>
+            <span>Top 30 refreshes daily</span>
             <span>Refund-risk alerts</span>
             <span>DRM and DLC warnings</span>
             <span>Pay once or subscribe</span>
@@ -282,8 +330,8 @@ export default function Home() {
             <button type="button" className="primary-action" onClick={loadTrending}>
               Scan the top 30 now
             </button>
-            <button type="button" className="secondary-action" onClick={() => highlighted?.appId && openReport(highlighted.appId)}>
-              Unlock a buyer&apos;s report
+            <button type="button" className="secondary-action" onClick={() => highlighted && selectGame(highlighted)}>
+              Unlock today&apos;s report
             </button>
           </div>
           <div className="search-box">
@@ -356,8 +404,8 @@ export default function Home() {
         <section className="report-card">
           <div className="score-row">
             <div>
-              <p>Steam Top 30 purchase board</p>
-              <h2>Hype vs. regret</h2>
+              <p>Daily Steam Top 30</p>
+              <h2>Top 10 visible, 20 more inside</h2>
             </div>
             <button type="button" onClick={loadTrending}>
               Refresh
@@ -366,12 +414,12 @@ export default function Home() {
           {loadingGames ? <div className="review-snapshot">Fetching Steam top sellers and public review signals...</div> : null}
           {gamesError ? <div className="error-box">{gamesError}</div> : null}
           <div className="game-list">
-            {games.map((game, index) => (
+            {visibleGames.map((game, index) => (
               <button
                 key={game.appId}
                 type="button"
                 className={`game-row ${selected?.appId === game.appId ? "selected" : ""}`}
-                onClick={() => setSelected(game)}
+                onClick={() => selectGame(game)}
               >
                 <span className="rank-badge">{index + 1}</span>
                 <img src={game.image} alt="" />
@@ -384,6 +432,30 @@ export default function Home() {
               </button>
             ))}
           </div>
+          {hiddenGames.length ? (
+            <details className="more-games">
+              <summary>Show ranks 11-30</summary>
+              <div className="game-list scroll-window">
+                {hiddenGames.map((game, index) => (
+                  <button
+                    key={game.appId}
+                    type="button"
+                    className={`game-row compact ${selected?.appId === game.appId ? "selected" : ""}`}
+                    onClick={() => selectGame(game)}
+                  >
+                    <span className="rank-badge">{index + 11}</span>
+                    <img src={game.image} alt="" />
+                    <div className="game-title">
+                      <strong>{game.name}</strong>
+                      <small>Risk {game.riskScore}/100</small>
+                    </div>
+                    <small>{game.reviewSummary}</small>
+                    <em className={game.tone}>{game.verdict}</em>
+                  </button>
+                ))}
+              </div>
+            </details>
+          ) : null}
         </section>
 
         <aside className={`verdict-panel ${highlighted?.tone || "watch"}`}>
@@ -412,8 +484,8 @@ export default function Home() {
                 <span>Public backlash</span>
                 <span>Refund clues</span>
               </div>
-              <button type="button" onClick={() => openReport(highlighted.appId)}>
-                Unlock the buyer&apos;s report
+              <button type="button" onClick={() => selectGame(highlighted)} disabled={reportBusy}>
+                {reportBusy ? "Checking access..." : "Open buyer report"}
               </button>
             </>
           ) : null}
@@ -467,6 +539,7 @@ export default function Home() {
             <div className="game-facts">
               <p className="eyebrow">Paid full report</p>
               <h2>{report.game.name}</h2>
+              <p className="analysis-copy">{report.contentBrief?.buyerAnalysis || report.verdict.summary}</p>
               <div className="fact-grid">
                 <div>
                   <span>Verdict</span>
@@ -484,11 +557,113 @@ export default function Home() {
                   <span>Metacritic</span>
                   <strong>{report.game.metacritic ?? "Unknown"}</strong>
                 </div>
+                <div>
+                  <span>Release</span>
+                  <strong>{report.game.releaseDate || "Unknown"}</strong>
+                </div>
+                <div>
+                  <span>Developer</span>
+                  <strong>{report.game.developers?.[0] || "Unknown"}</strong>
+                </div>
               </div>
               <a className="source-link" href={report.game.steamUrl} target="_blank" rel="noreferrer">
                 Open Steam page
               </a>
             </div>
+          </section>
+
+          <section className="intel-grid">
+            <article className="pro-card chart-card">
+              <div className="panel-heading">
+                <p>Sentiment pie</p>
+                <h2>Public mood mix</h2>
+              </div>
+              <div
+                className="sentiment-pie"
+                style={
+                  {
+                    "--positive": `${report.sentimentBreakdown.positive}%`,
+                    "--mixed": `${report.sentimentBreakdown.positive + report.sentimentBreakdown.mixed}%`,
+                  } as CSSProperties
+                }
+              >
+                <span>{report.sentimentBreakdown.positive}%</span>
+              </div>
+              <div className="legend-row">
+                <span className="positive">Positive {report.sentimentBreakdown.positive}%</span>
+                <span className="mixed">Mixed {report.sentimentBreakdown.mixed}%</span>
+                <span className="negative">Negative {report.sentimentBreakdown.negative}%</span>
+              </div>
+            </article>
+
+            <article className="pro-card chart-card wide">
+              <div className="panel-heading">
+                <p>FB / TikTok / YouTube / Reddit / Instagram</p>
+                <h2>Platform feedback bars</h2>
+              </div>
+              <div className="bar-list">
+                {report.platformFeedback.map((item) => (
+                  <a key={item.platform} className="bar-item" href={item.url} target="_blank" rel="noreferrer">
+                    <div>
+                      <strong>{item.platform}</strong>
+                      <span>{item.sentiment} · {item.source}</span>
+                    </div>
+                    <div className="bar-track" aria-label={`${item.platform} score ${item.score}`}>
+                      <span style={{ width: `${item.score}%` }} />
+                    </div>
+                    <em>{item.score}</em>
+                  </a>
+                ))}
+              </div>
+            </article>
+          </section>
+
+          <section className="deep-analysis">
+            <article className="pro-card">
+              <div className="panel-heading">
+                <p>Story and setup</p>
+                <h2>What the game is about</h2>
+              </div>
+              <p className="analysis-copy">{report.contentBrief.story}</p>
+              <div className="tag-row">
+                {(report.game.genres || []).slice(0, 5).map((genre) => (
+                  <span key={genre}>{genre}</span>
+                ))}
+              </div>
+            </article>
+            <article className="pro-card">
+              <div className="panel-heading">
+                <p>Characters</p>
+                <h2>Roles to watch</h2>
+              </div>
+              <ul className="clean-list">
+                {report.contentBrief.characters.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </article>
+            <article className="pro-card">
+              <div className="panel-heading">
+                <p>Scenes</p>
+                <h2>Where the fun or friction appears</h2>
+              </div>
+              <ul className="clean-list">
+                {report.contentBrief.scenes.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </article>
+            <article className="pro-card">
+              <div className="panel-heading">
+                <p>Game tips</p>
+                <h2>Before you keep it</h2>
+              </div>
+              <ul className="clean-list">
+                {report.contentBrief.tips.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </article>
           </section>
 
           <section className="business-grid public-sources">
@@ -524,7 +699,7 @@ export default function Home() {
             <article className="calculator-card">
               <div className="panel-heading">
                 <p>Social discussion</p>
-                <h2>Reddit / public web</h2>
+                <h2>Reddit threads</h2>
               </div>
               {report.reddit.posts.length ? (
                 report.reddit.posts.map((post) => (
@@ -544,6 +719,18 @@ export default function Home() {
                 </div>
               )}
             </article>
+          </section>
+
+          <section className="pro-card">
+            <div className="panel-heading">
+              <p>Coverage note</p>
+              <h2>Data limits and next API upgrades</h2>
+            </div>
+            <ul className="clean-list compact-list">
+              {report.limitations.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
           </section>
         </>
       ) : null}

@@ -5,6 +5,9 @@ export type AnalysisResult = {
     image?: string;
     developers: string[];
     publishers: string[];
+    genres: string[];
+    categories: string[];
+    story: string;
     price: string;
     discount: number;
     releaseDate: string;
@@ -47,6 +50,27 @@ export type AnalysisResult = {
     }[];
     error: string | null;
     searchUrl: string;
+  };
+  platformFeedback: {
+    platform: "Steam" | "Reddit" | "YouTube" | "TikTok" | "Facebook" | "Instagram";
+    sentiment: "Positive" | "Mixed" | "Negative" | "Watch";
+    score: number;
+    volume: number;
+    summary: string;
+    source: string;
+    url?: string;
+  }[];
+  sentimentBreakdown: {
+    positive: number;
+    mixed: number;
+    negative: number;
+  };
+  contentBrief: {
+    story: string;
+    characters: string[];
+    scenes: string[];
+    tips: string[];
+    buyerAnalysis: string;
   };
   limitations: string[];
 };
@@ -257,6 +281,75 @@ function sourceUrl(permalink?: string) {
   return permalink ? `https://www.reddit.com${permalink}` : "https://www.reddit.com";
 }
 
+function clamp(value: number, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function sentimentLabel(score: number): "Positive" | "Mixed" | "Negative" | "Watch" {
+  if (score >= 70) return "Positive";
+  if (score >= 48) return "Mixed";
+  if (score >= 30) return "Watch";
+  return "Negative";
+}
+
+function compactSummary(text = "", fallback: string) {
+  const clean = stripHtml(text);
+  if (!clean) return fallback;
+  return clean.length > 360 ? `${clean.slice(0, 357)}...` : clean;
+}
+
+function buildContentBrief({
+  name,
+  shortDescription,
+  about,
+  genres,
+  categories,
+  riskScore,
+  verdictLabel,
+}: {
+  name: string;
+  shortDescription?: string;
+  about?: string;
+  genres: string[];
+  categories: string[];
+  riskScore: number;
+  verdictLabel: string;
+}) {
+  const genreText = genres.length ? genres.join(", ") : "PC game";
+  const categoryText = categories.join(" ").toLowerCase();
+  const story = compactSummary(
+    shortDescription || about,
+    `${name} is positioned as a ${genreText} title. Use the full Steam page and recent reviews to confirm whether the theme, pacing, and content depth match what you want before buying.`,
+  );
+  const characters = [
+    categoryText.includes("single-player") ? "Solo player progression and main playable role" : "Player squad, opponents, or online lobby roles",
+    categoryText.includes("co-op") || categoryText.includes("multi-player")
+      ? "Co-op teammates and competitive player archetypes"
+      : "NPCs, bosses, companions, or world factions mentioned by the game page",
+    genres.some((genre) => /rpg|adventure|story/i.test(genre))
+      ? "Story-driving characters and quest givers"
+      : "Core gameplay roles defined by the genre loop",
+  ];
+  const scenes = [
+    genres.some((genre) => /strategy|simulation/i.test(genre)) ? "Planning screens, resource decisions, and long-session management" : "Opening tutorial and first-hour gameplay loop",
+    genres.some((genre) => /action|shooter|fighting/i.test(genre)) ? "Combat arenas, boss encounters, and high-input moments" : "Exploration, progression, and repeatable challenge areas",
+    categoryText.includes("online") ? "Matchmaking, servers, events, and late-game online systems" : "Campaign chapters, side content, and replayable modes",
+  ];
+  const tips = [
+    "Read the most recent negative Steam reviews first; older praise can hide new bugs or monetization changes.",
+    riskScore >= 46 ? "Wait for a discount or a patch cycle before paying full price." : "Still check refund-window performance on your own PC setup.",
+    categoryText.includes("online") ? "Check server population, anti-cheat complaints, and region matchmaking before purchase." : "Check save system, difficulty curve, and first-hour pacing before keeping it.",
+    "Compare YouTube gameplay footage with written reviews; edited trailers often hide grind, UI friction, and repeated content.",
+  ];
+  const buyerAnalysis =
+    riskScore >= 72
+      ? `${verdictLabel}: the public signal mix suggests a high chance of buyer regret. Treat this as a waitlist game unless you strongly match its niche.`
+      : riskScore >= 46
+        ? `${verdictLabel}: the game may be worth watching, but the current signal mix argues against full-price impulse buying.`
+        : `${verdictLabel}: public signals look relatively healthy, but the safest move is still to verify performance and recent complaints.`;
+  return { story, characters, scenes, tips, buyerAnalysis };
+}
+
 export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
   const detailsUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=basic,genres,categories,release_date,price_overview,platforms,metacritic,recommendations,developers,publishers`;
   const reviewsUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&filter=recent&language=english&purchase_type=all&num_per_page=30`;
@@ -357,6 +450,8 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
     Math.min(100, hits.reduce((sum, hit) => sum + hit.weight, 0) + reviewScorePenalty + publicDiscussionPenalty - positiveOffset),
   );
   const resultVerdict = verdict(riskScore, reviewSummary?.review_score_desc || "");
+  const genres = details.genres?.map((item) => item.description || "").filter(Boolean) || [];
+  const categories = details.categories?.map((item) => item.description || "").filter(Boolean) || [];
 
   const topComplaints = [
     ["Performance / bugs", /crash|stutter|performance|optimization|bug|broken|fps|freeze|unplayable/i],
@@ -372,6 +467,89 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
     .filter((item) => item.count > 0)
     .slice(0, 4);
 
+  const steamPositiveRatio = reviewSummary?.total_reviews
+    ? Math.round(((reviewSummary.total_positive || 0) / reviewSummary.total_reviews) * 100)
+    : clamp(82 - riskScore);
+  const redditRiskHits = redditPosts.filter((post) => /refund|bug|crash|avoid|scam|broken|not worth/i.test(post.text)).length;
+  const redditScore = redditPosts.length ? clamp(66 - redditRiskHits * 12 + Math.min(12, redditPosts.length * 2)) : clamp(58 - riskScore / 3);
+  const socialBase = clamp(76 - riskScore + Math.min(10, (reviewSummary?.total_reviews || 0) / 5000));
+  const platformFeedback = [
+    {
+      platform: "Steam" as const,
+      sentiment: sentimentLabel(steamPositiveRatio),
+      score: steamPositiveRatio,
+      volume: reviewSummary?.total_reviews || 0,
+      summary: `${reviewSummary?.description || "Unknown"} across ${reviewSummary?.total_reviews?.toLocaleString("en-US") || "unknown"} public Steam reviews.`,
+      source: "Steam public reviews",
+      url: `https://store.steampowered.com/app/${appId}`,
+    },
+    {
+      platform: "Reddit" as const,
+      sentiment: sentimentLabel(redditScore),
+      score: redditScore,
+      volume: redditPosts.reduce((sum, post) => sum + post.comments, 0),
+      summary: redditPosts.length
+        ? `${redditPosts.length} public Reddit threads found; ${redditRiskHits} contain refund, bug, crash, or avoid language.`
+        : "Reddit public search returned limited data for this title.",
+      source: redditPosts.length ? "Reddit public search" : "Reddit search limited",
+      url: `https://www.reddit.com/search/?q=${encodeURIComponent(`${details.name} Steam review bug refund worth it`)}`,
+    },
+    {
+      platform: "YouTube" as const,
+      sentiment: sentimentLabel(socialBase + 4),
+      score: clamp(socialBase + 4),
+      volume: Math.max(12, Math.round((reviewSummary?.total_reviews || 1000) / 180)),
+      summary: "Modeled from public review strength and risk language. Use linked search to compare gameplay footage and review videos.",
+      source: "Modeled signal + search link",
+      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${details.name} review gameplay Steam`)}`,
+    },
+    {
+      platform: "TikTok" as const,
+      sentiment: sentimentLabel(socialBase - 2),
+      score: clamp(socialBase - 2),
+      volume: Math.max(8, Math.round((reviewSummary?.total_reviews || 1000) / 260)),
+      summary: "Modeled short-form buzz signal. Useful for hype detection, clips, glitches, and first-impression complaints.",
+      source: "Modeled signal + search link",
+      url: `https://www.tiktok.com/search?q=${encodeURIComponent(`${details.name} game review`)}`,
+    },
+    {
+      platform: "Facebook" as const,
+      sentiment: sentimentLabel(socialBase - 6),
+      score: clamp(socialBase - 6),
+      volume: Math.max(6, Math.round((reviewSummary?.total_reviews || 1000) / 320)),
+      summary: "Modeled broad-community signal. Best used for group complaints, deal comments, and casual-player reactions.",
+      source: "Modeled signal + search link",
+      url: `https://www.facebook.com/search/top?q=${encodeURIComponent(`${details.name} game review`)}`,
+    },
+    {
+      platform: "Instagram" as const,
+      sentiment: sentimentLabel(socialBase),
+      score: socialBase,
+      volume: Math.max(6, Math.round((reviewSummary?.total_reviews || 1000) / 300)),
+      summary: "Modeled visual buzz signal. Useful for trailer reception, aesthetic appeal, cosplay/fan-art momentum, and creator posts.",
+      source: "Modeled signal + search link",
+      url: `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(details.name)}`,
+    },
+  ];
+  const positive = Math.round(platformFeedback.reduce((sum, item) => sum + item.score, 0) / platformFeedback.length);
+  const negative = clamp(riskScore);
+  const mixed = clamp(100 - Math.round((positive + negative) / 2));
+  const totalBreakdown = positive + mixed + negative || 1;
+  const sentimentBreakdown = {
+    positive: Math.round((positive / totalBreakdown) * 100),
+    mixed: Math.round((mixed / totalBreakdown) * 100),
+    negative: Math.round((negative / totalBreakdown) * 100),
+  };
+  const contentBrief = buildContentBrief({
+    name: details.name,
+    shortDescription: details.short_description,
+    about: details.about_the_game,
+    genres,
+    categories,
+    riskScore,
+    verdictLabel: resultVerdict.label,
+  });
+
   return {
     appId,
     game: {
@@ -379,6 +557,9 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
       image: details.header_image,
       developers: details.developers || [],
       publishers: details.publishers || [],
+      genres,
+      categories,
+      story: contentBrief.story,
       price: details.is_free ? "Free to Play" : details.price_overview?.final_formatted || "Price unavailable",
       discount: details.price_overview?.discount_percent || 0,
       releaseDate: details.release_date?.date || "Unknown",
@@ -405,9 +586,12 @@ export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {
       error: redditError,
       searchUrl: `https://www.reddit.com/search/?q=${encodeURIComponent(`${details.name} Steam review bug refund worth it`)}`,
     },
+    platformFeedback,
+    sentimentBreakdown,
+    contentBrief,
     limitations: [
       "Reddit access uses public search and may be rate-limited.",
-      "YouTube, X, TikTok, and Discord require official APIs or partner access for reliable production coverage.",
+      "Facebook, TikTok, YouTube, and Instagram cards are modeled public-signal summaries until official platform APIs are connected.",
       "This is a purchase-assistance signal, not a guarantee of game quality.",
     ],
   };

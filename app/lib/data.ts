@@ -35,6 +35,9 @@ export async function ensureSchema() {
     db.prepare(
       "CREATE TABLE IF NOT EXISTS game_reports (app_id TEXT PRIMARY KEY, title TEXT NOT NULL, risk_score INTEGER NOT NULL, verdict TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL)",
     ),
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS trending_cache (cache_key TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at INTEGER NOT NULL)",
+    ),
     db.prepare("CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS entitlements_user_idx ON entitlements (user_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS checkout_provider_idx ON checkout_sessions (provider_session_id)"),

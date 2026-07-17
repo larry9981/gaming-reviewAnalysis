@@ -692,6 +692,27 @@ button:hover {
   margin-top: 14px;
 }
 
+.more-games {
+  margin-top: 12px;
+}
+
+.more-games summary {
+  background: rgba(98, 214, 255, 0.08);
+  border: 1px solid rgba(98, 214, 255, 0.24);
+  border-radius: 8px;
+  color: #dff7ff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 12px 14px;
+}
+
+.scroll-window {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
 .game-row {
   align-items: center;
   background: #0b0f15;
@@ -777,6 +798,14 @@ button:hover {
   background: var(--red);
 }
 
+.game-row.compact {
+  grid-template-columns: 40px 82px minmax(0, 1fr) minmax(110px, 150px) 118px;
+}
+
+.game-row.compact img {
+  width: 82px;
+}
+
 .mini-signals {
   display: flex;
   flex-wrap: wrap;
@@ -813,6 +842,165 @@ button:hover {
   display: grid;
   gap: 18px;
   grid-template-columns: 1fr 1fr 1.08fr;
+}
+
+.intel-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(260px, 0.45fr) minmax(0, 1fr);
+}
+
+.chart-card {
+  align-content: start;
+  display: grid;
+  gap: 16px;
+}
+
+.sentiment-pie {
+  align-items: center;
+  aspect-ratio: 1;
+  background:
+    conic-gradient(
+      var(--green) 0 var(--positive),
+      var(--amber) var(--positive) var(--mixed),
+      var(--red) var(--mixed) 100%
+    );
+  border: 1px solid #344152;
+  border-radius: 50%;
+  display: grid;
+  justify-self: center;
+  max-width: 230px;
+  place-items: center;
+  position: relative;
+  width: 100%;
+}
+
+.sentiment-pie::after {
+  background: #111720;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  content: "";
+  height: 58%;
+  position: absolute;
+  width: 58%;
+}
+
+.sentiment-pie span {
+  color: var(--foreground);
+  font-size: 30px;
+  font-weight: 900;
+  position: relative;
+  z-index: 1;
+}
+
+.legend-row,
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.legend-row span,
+.tag-row span {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 999px;
+  color: #d4e5f3;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 9px;
+}
+
+.legend-row .positive {
+  border-color: rgba(94, 225, 139, 0.32);
+}
+
+.legend-row .mixed {
+  border-color: rgba(245, 196, 78, 0.32);
+}
+
+.legend-row .negative {
+  border-color: rgba(255, 103, 103, 0.32);
+}
+
+.bar-list {
+  display: grid;
+  gap: 10px;
+}
+
+.bar-item {
+  align-items: center;
+  background: #0d141e;
+  border: 1px solid #263649;
+  border-radius: 8px;
+  color: var(--foreground);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(130px, 0.28fr) minmax(0, 1fr) 42px;
+  padding: 12px;
+  text-decoration: none;
+}
+
+.bar-item:hover {
+  border-color: rgba(94, 225, 139, 0.52);
+}
+
+.bar-item div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.bar-item strong {
+  font-size: 15px;
+}
+
+.bar-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bar-track {
+  background: #1e2836;
+  border-radius: 999px;
+  height: 12px;
+  overflow: hidden;
+}
+
+.bar-track span {
+  background: linear-gradient(90deg, var(--green), var(--blue));
+  display: block;
+  height: 100%;
+}
+
+.bar-item em {
+  color: var(--green);
+  font-style: normal;
+  font-weight: 900;
+  text-align: right;
+}
+
+.deep-analysis {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.analysis-copy {
+  color: #c1ceda;
+  line-height: 1.6;
+}
+
+.clean-list {
+  color: #c2d0dd;
+  display: grid;
+  gap: 10px;
+  line-height: 1.5;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.compact-list {
+  margin-top: 10px;
 }
 
 .public-sources {
@@ -1037,6 +1225,8 @@ input[type="range"] {
   .hero-band,
   .workspace,
   .business-grid,
+  .intel-grid,
+  .deep-analysis,
   .funnel-steps,
   .game-summary,
   .pricing-grid,
@@ -1059,6 +1249,10 @@ input[type="range"] {
   .game-row em {
     grid-column: 3 / 5;
     justify-self: start;
+  }
+
+  .game-row.compact {
+    grid-template-columns: 40px 82px minmax(0, 1fr) 118px;
   }
 }
 
@@ -1099,6 +1293,10 @@ input[type="range"] {
     grid-template-columns: 38px minmax(0, 1fr);
   }
 
+  .game-row.compact {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
   .game-row img {
     display: none;
   }
@@ -1116,6 +1314,14 @@ input[type="range"] {
 
   .game-row em {
     justify-self: start;
+  }
+
+  .bar-item {
+    grid-template-columns: 1fr;
+  }
+
+  .bar-item em {
+    text-align: left;
   }
 
   .score-row {
