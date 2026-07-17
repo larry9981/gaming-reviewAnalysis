@@ -248,12 +248,26 @@ export default function Home() {
     <main className="app-shell">
       <section className="hero-band product-hero">
         <div className="hero-copy">
-          <p className="eyebrow">Steam Guardrail</p>
-          <h1>Top Steam games, ranked by purchase risk.</h1>
+          <p className="eyebrow">Steam sale armor</p>
+          <h1>Don&apos;t buy your next regret.</h1>
           <p className="subcopy">
-            We automatically scan the top 30 Steam games, summarize public review signals, and lock full game reports behind
-            real paid checkout: $19.90 once or $12.99/month.
+            Steam Guardrail scans trending games before players spend. We surface review bombs, refund clues, DRM complaints,
+            DLC traps, and social backlash so the hype does not empty your wallet.
           </p>
+          <div className="hero-chips" aria-label="Product benefits">
+            <span>Top 30 scanned live</span>
+            <span>Refund-risk alerts</span>
+            <span>DRM and DLC warnings</span>
+            <span>Pay once or subscribe</span>
+          </div>
+          <div className="hero-actions">
+            <button type="button" className="primary-action" onClick={loadTrending}>
+              Scan the top 30 now
+            </button>
+            <button type="button" className="secondary-action" onClick={() => highlighted?.appId && openReport(highlighted.appId)}>
+              Unlock a buyer&apos;s report
+            </button>
+          </div>
           <div className="search-box">
             <label htmlFor="steam-input">Analyze any Steam URL or App ID</label>
             <div className="search-row">
@@ -264,7 +278,7 @@ export default function Home() {
                 placeholder="https://store.steampowered.com/app/..."
               />
               <button type="button" onClick={() => openReport()}>
-                Full report
+                Check before buying
               </button>
             </div>
           </div>
@@ -272,11 +286,11 @@ export default function Home() {
         </div>
 
         <aside className="auth-panel">
-          <p className="eyebrow">Account</p>
+          <p className="eyebrow">Player account</p>
           {user ? (
             <>
               <strong>{user.email}</strong>
-              <span>Paid reports and monthly access are linked to this account.</span>
+              <span>Your paid reports and monthly unlocks follow this account across devices.</span>
               <button type="button" onClick={logout}>
                 Sign out
               </button>
@@ -288,6 +302,7 @@ export default function Home() {
             </>
           ) : (
             <>
+              <span className="auth-pitch">Create an account to save unlocks, subscriptions, and every report you buy.</span>
               <div className="tab-row">
                 <button type="button" className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>
                   Register
@@ -323,8 +338,8 @@ export default function Home() {
         <section className="report-card">
           <div className="score-row">
             <div>
-              <p>Top 30 watcher</p>
-              <h2>Free public ranking</h2>
+              <p>Steam Top 30 purchase board</p>
+              <h2>Hype vs. regret</h2>
             </div>
             <button type="button" onClick={loadTrending}>
               Refresh
@@ -340,9 +355,12 @@ export default function Home() {
                 className={`game-row ${selected?.appId === game.appId ? "selected" : ""}`}
                 onClick={() => setSelected(game)}
               >
-                <span>{index + 1}</span>
+                <span className="rank-badge">{index + 1}</span>
                 <img src={game.image} alt="" />
-                <strong>{game.name}</strong>
+                <div className="game-title">
+                  <strong>{game.name}</strong>
+                  <small>Risk {game.riskScore}/100</small>
+                </div>
                 <small>{game.reviewSummary}</small>
                 <em className={game.tone}>{game.verdict}</em>
               </button>
@@ -351,10 +369,19 @@ export default function Home() {
         </section>
 
         <aside className={`verdict-panel ${highlighted?.tone || "watch"}`}>
-          <p className="eyebrow">Selected game</p>
+          <p className="eyebrow">Before you buy</p>
           <strong>{highlighted?.name || "Choose a game"}</strong>
           <span>{highlighted ? `${highlighted.price} · ${highlighted.reviewSummary}` : "Select a top game to inspect its free summary."}</span>
-          <div className="score-badge large">{highlighted?.riskScore ?? "--"}</div>
+          <div className="selected-meta">
+            <div>
+              <span>Risk score</span>
+              <strong>{highlighted?.riskScore ?? "--"}</strong>
+            </div>
+            <div>
+              <span>Buy verdict</span>
+              <strong>{highlighted?.verdict || "Pick a game"}</strong>
+            </div>
+          </div>
           {highlighted ? (
             <>
               <div className="mini-signals">
@@ -362,8 +389,13 @@ export default function Home() {
                   <span key={signal}>{signal}</span>
                 ))}
               </div>
+              <div className="conversion-list">
+                <span>Steam reviews</span>
+                <span>Public backlash</span>
+                <span>Refund clues</span>
+              </div>
               <button type="button" onClick={() => openReport(highlighted.appId)}>
-                View full report
+                Unlock the buyer&apos;s report
               </button>
             </>
           ) : null}
@@ -373,9 +405,9 @@ export default function Home() {
       {paywall ? (
         <section className="pricing-grid">
           <article className="price-card">
-            <p className="eyebrow">One-time report</p>
+            <p className="eyebrow">One game, one clean answer</p>
             <h2>$19.90</h2>
-            <p>Unlock the complete analysis for Steam App {paywall.appId}.</p>
+            <p>Unlock the complete buy-or-skip report for Steam App {paywall.appId}. Best when one expensive game is on your mind.</p>
             <button type="button" onClick={() => checkout("single", paywall.appId, "stripe")}>
               Pay by card
             </button>
@@ -384,9 +416,9 @@ export default function Home() {
             </button>
           </article>
           <article className="price-card featured">
-            <p className="eyebrow">Monthly access</p>
+            <p className="eyebrow">Best for Steam sale season</p>
             <h2>$12.99/mo</h2>
-            <p>Unlimited full reports while your subscription remains active.</p>
+            <p>Unlimited full reports while your subscription remains active. Compare wishlisted games before every checkout.</p>
             <button type="button" onClick={() => checkout("monthly", paywall.appId, "stripe")}>
               Subscribe by card
             </button>
@@ -397,7 +429,15 @@ export default function Home() {
           <article className="price-card">
             <p className="eyebrow">Payment methods</p>
             <h2>Cards + PayPal</h2>
-            <p>Credit cards run through Stripe Checkout. PayPal can be enabled in Stripe or connected with PayPal credentials.</p>
+            <p>PayPal is connected for real checkout. Credit card buttons use Stripe Checkout after Stripe keys are added.</p>
+            <div className="method-row">
+              <span>PayPal</span>
+              <strong>Live</strong>
+            </div>
+            <div className="method-row muted">
+              <span>Cards</span>
+              <strong>Needs Stripe keys</strong>
+            </div>
           </article>
         </section>
       ) : null}

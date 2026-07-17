@@ -1,16 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0b1018;
-  --foreground: #e8eef5;
-  --muted: #9baabc;
-  --panel: #121a25;
-  --panel-strong: #172331;
-  --line: #263649;
-  --green: #62c58a;
-  --amber: #f2b84b;
-  --red: #ee6666;
-  --blue: #5ca2d8;
+  --background: #090b10;
+  --foreground: #f3f7fb;
+  --muted: #9da8b7;
+  --panel: #12161e;
+  --panel-strong: #171f2a;
+  --line: #293241;
+  --green: #5ee18b;
+  --amber: #f5c44e;
+  --red: #ff6767;
+  --blue: #62d6ff;
+  --magenta: #ff5fa8;
+  --ink: #080a0e;
 }
 
 @theme inline {
@@ -30,8 +32,10 @@ html {
 
 body {
   background:
-    radial-gradient(circle at 20% 0%, rgba(92, 162, 216, 0.18), transparent 34rem),
-    linear-gradient(180deg, #0b1018 0%, #101723 48%, #0b1018 100%);
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(180deg, #090b10 0%, #10131a 45%, #090b10 100%);
+  background-size: 42px 42px, 42px 42px, auto;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   margin: 0;
@@ -66,12 +70,25 @@ button {
 .hero-copy {
   align-content: end;
   background:
-    linear-gradient(135deg, rgba(23, 35, 49, 0.98), rgba(18, 26, 37, 0.86)),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 80px);
-  border: 1px solid var(--line);
+    linear-gradient(135deg, rgba(16, 20, 27, 0.98), rgba(14, 16, 22, 0.9)),
+    repeating-linear-gradient(90deg, rgba(98, 214, 255, 0.08) 0 1px, transparent 1px 92px);
+  border: 1px solid #344152;
   border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035), 0 24px 80px rgba(0, 0, 0, 0.28);
   display: grid;
   padding: 34px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-copy::before {
+  background: linear-gradient(90deg, rgba(94, 225, 139, 0.22), rgba(98, 214, 255, 0.06), rgba(255, 95, 168, 0.2));
+  content: "";
+  height: 3px;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 
 .product-hero {
@@ -81,7 +98,7 @@ button {
 .eyebrow,
 .panel-heading p,
 .score-row p {
-  color: var(--blue);
+  color: var(--green);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0;
@@ -103,16 +120,60 @@ h1 {
 }
 
 .subcopy {
-  color: #bfd0df;
+  color: #c6d1dc;
   font-size: 17px;
   line-height: 1.65;
   margin-top: 22px;
   max-width: 720px;
 }
 
+.hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.hero-chips span {
+  background: rgba(94, 225, 139, 0.1);
+  border: 1px solid rgba(94, 225, 139, 0.28);
+  border-radius: 999px;
+  color: #dcffe8;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.primary-action {
+  background: linear-gradient(135deg, var(--green), #9cffb9);
+  border-color: rgba(94, 225, 139, 0.7);
+  color: #07110b;
+}
+
+.primary-action:hover {
+  background: linear-gradient(135deg, #6fff98, #c0ffd0);
+}
+
+.secondary-action {
+  background: rgba(98, 214, 255, 0.08);
+  border-color: rgba(98, 214, 255, 0.38);
+  color: #dff7ff;
+}
+
+.secondary-action:hover {
+  background: rgba(98, 214, 255, 0.16);
+}
+
 .search-box {
-  background: rgba(13, 20, 30, 0.82);
-  border: 1px solid #30445c;
+  background: rgba(7, 10, 15, 0.82);
+  border: 1px solid #394657;
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -133,8 +194,8 @@ h1 {
 }
 
 .search-row input {
-  background: #090f17;
-  border: 1px solid #35506a;
+  background: #080b10;
+  border: 1px solid #3b485b;
   border-radius: 7px;
   color: var(--foreground);
   min-height: 44px;
@@ -178,9 +239,11 @@ h1 {
 
 .verdict-panel {
   align-content: end;
-  background: rgba(18, 26, 37, 0.92);
+  background:
+    linear-gradient(180deg, rgba(24, 29, 38, 0.96), rgba(13, 16, 22, 0.94));
   border: 1px solid var(--line);
   border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
   display: grid;
   gap: 12px;
   padding: 24px;
@@ -188,7 +251,7 @@ h1 {
 
 .auth-panel {
   align-content: start;
-  background: rgba(18, 26, 37, 0.92);
+  background: rgba(18, 22, 30, 0.94);
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
@@ -197,8 +260,8 @@ h1 {
 }
 
 .auth-panel input {
-  background: #090f17;
-  border: 1px solid #35506a;
+  background: #080b10;
+  border: 1px solid #3b485b;
   border-radius: 7px;
   color: var(--foreground);
   min-height: 42px;
@@ -208,6 +271,13 @@ h1 {
 .auth-panel span {
   color: #b8c8d6;
   line-height: 1.45;
+}
+
+.auth-pitch {
+  background: rgba(98, 214, 255, 0.07);
+  border: 1px solid rgba(98, 214, 255, 0.16);
+  border-radius: 8px;
+  padding: 12px;
 }
 
 .tab-row {
@@ -221,7 +291,7 @@ h1 {
 }
 
 .tab-row button.active {
-  background: #23435e;
+  background: #24384c;
 }
 
 .verdict-panel strong {
@@ -239,6 +309,36 @@ h1 {
   height: 132px;
   margin-top: 10px;
   width: 100%;
+}
+
+.selected-meta {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 0.85fr 1.15fr;
+}
+
+.selected-meta div {
+  background: #080b10;
+  border: 1px solid #344152;
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  min-height: 92px;
+  padding: 14px;
+}
+
+.selected-meta span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.selected-meta strong {
+  color: var(--foreground);
+  font-size: clamp(22px, 4vw, 42px);
+  line-height: 1;
+  overflow-wrap: anywhere;
 }
 
 .ok .score-badge,
@@ -329,7 +429,7 @@ h1 {
 .watchlist-card,
 .calculator-card,
 .funnel {
-  background: rgba(18, 26, 37, 0.92);
+  background: rgba(18, 22, 30, 0.92);
   border: 1px solid var(--line);
   border-radius: 8px;
 }
@@ -424,8 +524,8 @@ small,
 }
 
 button {
-  background: #23435e;
-  border: 1px solid #3a6688;
+  background: #24384c;
+  border: 1px solid #41617e;
   border-radius: 7px;
   color: #f5fbff;
   cursor: pointer;
@@ -434,7 +534,7 @@ button {
 }
 
 button:hover {
-  background: #2b5374;
+  background: #2c455e;
 }
 
 .report-card {
@@ -594,12 +694,12 @@ button:hover {
 
 .game-row {
   align-items: center;
-  background: #0d141e;
+  background: #0b0f15;
   border: 1px solid #263649;
   border-radius: 8px;
   display: grid;
   gap: 10px;
-  grid-template-columns: 34px 96px minmax(0, 1fr) 160px 130px;
+  grid-template-columns: 40px 96px minmax(0, 1fr) minmax(120px, 160px) 130px;
   min-height: 72px;
   padding: 9px;
   text-align: left;
@@ -607,7 +707,22 @@ button:hover {
 
 .game-row.selected,
 .game-row:hover {
-  border-color: #4c779c;
+  border-color: rgba(94, 225, 139, 0.62);
+  box-shadow: 0 0 0 1px rgba(94, 225, 139, 0.12);
+}
+
+.rank-badge {
+  align-items: center;
+  background: #141b25;
+  border: 1px solid #344152;
+  border-radius: 7px;
+  color: #d8e2ec;
+  display: flex;
+  font-size: 13px;
+  font-weight: 900;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
 }
 
 .game-row img {
@@ -621,6 +736,18 @@ button:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.game-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.game-title small {
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .game-row small {
@@ -657,12 +784,29 @@ button:hover {
 }
 
 .mini-signals span {
-  background: #0d141e;
+  background: #080b10;
   border: 1px solid #2f445a;
   border-radius: 999px;
   color: #d4e5f3;
   font-size: 12px;
   padding: 7px 9px;
+}
+
+.conversion-list {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.conversion-list span {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 8px;
+  color: #c8d5e0;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 10px;
+  text-align: center;
 }
 
 .business-grid {
@@ -717,7 +861,7 @@ button:hover {
 }
 
 .price-card {
-  background: rgba(18, 26, 37, 0.92);
+  background: rgba(18, 22, 30, 0.94);
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
@@ -727,7 +871,21 @@ button:hover {
 
 .price-card.featured {
   border-color: rgba(98, 197, 138, 0.65);
-  box-shadow: 0 0 0 1px rgba(98, 197, 138, 0.15);
+  box-shadow: 0 0 0 1px rgba(98, 197, 138, 0.15), 0 24px 70px rgba(94, 225, 139, 0.08);
+  position: relative;
+}
+
+.price-card.featured::before {
+  background: var(--green);
+  border-radius: 999px;
+  color: #07110b;
+  content: "Most useful";
+  font-size: 11px;
+  font-weight: 900;
+  padding: 5px 8px;
+  position: absolute;
+  right: 14px;
+  top: 14px;
 }
 
 .price-card h2 {
@@ -737,6 +895,32 @@ button:hover {
 .price-card p {
   color: #b8c8d6;
   line-height: 1.5;
+}
+
+.method-row {
+  align-items: center;
+  background: #080b10;
+  border: 1px solid #344152;
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.method-row span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.method-row strong {
+  color: var(--green);
+  font-size: 13px;
+}
+
+.method-row.muted strong {
+  color: var(--amber);
 }
 
 .single-column {
@@ -867,6 +1051,15 @@ input[type="range"] {
   .hero-copy {
     padding: 28px;
   }
+
+  .game-row {
+    grid-template-columns: 40px 96px minmax(0, 1fr) 120px;
+  }
+
+  .game-row em {
+    grid-column: 3 / 5;
+    justify-self: start;
+  }
 }
 
 @media (max-width: 620px) {
@@ -895,21 +1088,34 @@ input[type="range"] {
   .quick-actions,
   .search-row,
   .fact-grid,
+  .selected-meta,
+  .conversion-list,
   .tab-row {
     grid-template-columns: 1fr;
   }
 
   .game-row {
-    grid-template-columns: 28px 74px minmax(0, 1fr);
+    align-items: start;
+    grid-template-columns: 38px minmax(0, 1fr);
   }
 
   .game-row img {
-    width: 74px;
+    display: none;
   }
 
+  .rank-badge {
+    height: 34px;
+    width: 34px;
+  }
+
+  .game-title,
   .game-row small,
   .game-row em {
-    grid-column: 3;
+    grid-column: 2;
+  }
+
+  .game-row em {
+    justify-self: start;
   }
 
   .score-row {
