@@ -340,6 +340,12 @@ export default function Home() {
     openReport(game.appId);
   }
 
+  function openPaidPlatform() {
+    setMessage("Subscribe or buy the single report to open detailed platform feedback sources.");
+    setPaywall((current) => current || (report ? { appId: report.appId, plans: [] } : null));
+    document.querySelector(".pricing-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   async function checkout(plan: "single" | "monthly", appId?: string, provider: "stripe" | "paypal" = "stripe") {
     if (!user) {
       setMessage("Create an account or log in before checkout. Your PayPal window opens after sign in.");
@@ -759,18 +765,31 @@ export default function Home() {
                 <h2>Platform feedback bars</h2>
               </div>
               <div className="bar-list">
-                {report.platformFeedback.map((item) => (
-                  <a key={item.platform} className="bar-item" href={item.url} target="_blank" rel="noreferrer">
-                    <div>
-                      <strong>{item.platform}</strong>
-                      <span>{item.sentiment} · {item.source}</span>
-                    </div>
-                    <div className="bar-track" aria-label={`${item.platform} score ${item.score}`}>
-                      <span style={{ width: `${item.score}%` }} />
-                    </div>
-                    <em>{item.score}</em>
-                  </a>
-                ))}
+                {report.platformFeedback.map((item) =>
+                  reportLocked ? (
+                    <button key={item.platform} type="button" className="bar-item locked" onClick={openPaidPlatform}>
+                      <div>
+                        <strong>{item.platform}</strong>
+                        <span>{item.sentiment} · Subscribe to open feedback</span>
+                      </div>
+                      <div className="bar-track" aria-label={`${item.platform} score ${item.score}`}>
+                        <span style={{ width: `${item.score}%` }} />
+                      </div>
+                      <em>{item.score}</em>
+                    </button>
+                  ) : (
+                    <a key={item.platform} className="bar-item" href={item.url} target="_blank" rel="noreferrer">
+                      <div>
+                        <strong>{item.platform}</strong>
+                        <span>{item.sentiment} · {item.source}</span>
+                      </div>
+                      <div className="bar-track" aria-label={`${item.platform} score ${item.score}`}>
+                        <span style={{ width: `${item.score}%` }} />
+                      </div>
+                      <em>{item.score}</em>
+                    </a>
+                  ),
+                )}
               </div>
             </article>
           </section>

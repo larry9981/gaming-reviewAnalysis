@@ -1056,15 +1056,27 @@ button:hover {
   border: 1px solid #263649;
   border-radius: 8px;
   color: var(--foreground);
+  cursor: pointer;
   display: grid;
   gap: 12px;
   grid-template-columns: minmax(130px, 0.28fr) minmax(0, 1fr) 42px;
   padding: 12px;
+  text-align: left;
   text-decoration: none;
 }
 
 .bar-item:hover {
   border-color: rgba(94, 225, 139, 0.52);
+}
+
+.bar-item.locked {
+  background: rgba(13, 20, 30, 0.72);
+  border-color: rgba(245, 196, 78, 0.32);
+}
+
+.bar-item.locked:hover {
+  background: rgba(245, 196, 78, 0.08);
+  border-color: rgba(245, 196, 78, 0.56);
 }
 
 .bar-item div:first-child {
