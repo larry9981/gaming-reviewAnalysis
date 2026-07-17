@@ -1031,6 +1031,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                         <span style={{ width: `${score}%` }} />
                       </div>
                       <em>{score}</em>
+                      <span className="detail-pill">Subscribe</span>
                     </button>
                   ) : (
                     <a key={item.platform} className="bar-item" href={item.url} target="_blank" rel="noreferrer">
@@ -1042,6 +1043,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                         <span style={{ width: `${score}%` }} />
                       </div>
                       <em>{score}</em>
+                      <span className="detail-pill">Check detail</span>
                     </a>
                   );
                 })}

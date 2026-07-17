@@ -1597,7 +1597,7 @@ button:hover {
   cursor: pointer;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(130px, 0.28fr) minmax(0, 1fr) 42px;
+  grid-template-columns: minmax(130px, 0.28fr) minmax(0, 1fr) 42px 112px;
   padding: 12px;
   text-align: left;
   text-decoration: none;
@@ -1649,6 +1649,27 @@ button:hover {
   font-style: normal;
   font-weight: 900;
   text-align: right;
+}
+
+.detail-pill {
+  align-items: center;
+  background: rgba(98, 214, 255, 0.1);
+  border: 1px solid rgba(98, 214, 255, 0.34);
+  border-radius: 7px;
+  color: #dff7ff;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  justify-content: center;
+  min-height: 34px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.bar-item:hover .detail-pill {
+  background: rgba(94, 225, 139, 0.14);
+  border-color: rgba(94, 225, 139, 0.46);
+  color: #e9fff0;
 }
 
 .deep-analysis {
