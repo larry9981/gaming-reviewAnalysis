@@ -108,6 +108,7 @@ type AnalysisResult = {
 
 type Paywall = {
   appId: string;
+  preview?: AnalysisResult;
   defaultPlan?: "single" | "monthly";
   plans: { id: "single" | "monthly"; label: string; price: string; appId?: string }[];
 };
@@ -178,7 +179,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const visibleGames = useMemo(() => games.slice(0, 10), [games]);
   const hiddenGames = useMemo(() => games.slice(10), [games]);
   const topFiveGames = useMemo(() => games.slice(0, 5), [games]);
-  const checkoutAppId = paywall?.appId || selected?.appId || highlighted?.appId || "";
+  const selectedCheckoutGame = paywall?.appId || highlighted?.appId || "";
   const showHome = page === "home";
   const showReviews = page === "reviews";
   const showPricing = page === "pricing";
@@ -345,6 +346,10 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       setPassword("");
       setMessage("You are signed in. You can continue to checkout.");
       await loadMe();
+      const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+      if (returnTo?.startsWith("/")) {
+        window.location.assign(returnTo);
+      }
     } catch {
       setMessage("Authentication failed. Please check your connection and try again.");
     } finally {
@@ -388,8 +393,15 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       const data = await response.json().catch(() => ({ error: "Report failed." }));
       if (response.status === 402) {
         setPaywall(data);
-        setReportLocked(false);
-        setMessage(user ? "This full report is locked. Choose a paid plan to continue." : "Create an account or log in, then choose a paid plan to continue.");
+        if (data.preview) {
+          setReport(data.preview);
+          setReportLocked(true);
+        }
+        setMessage(
+          user
+            ? "Limited analysis is shown. Choose a paid plan to unlock the full report."
+            : "Limited analysis is shown. Register or log in, then choose a paid plan to unlock the full report.",
+        );
         return;
       }
       if (!response.ok) {
@@ -421,11 +433,15 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   async function checkout(plan: "single" | "monthly", appId?: string, provider: "stripe" | "paypal" | "airwallex" = "airwallex") {
     if (!user) {
       setMessage("Create an account or log in before checkout.");
-      document.querySelector(".auth-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (showAccount) {
+        document.querySelector(".auth-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        window.location.assign(`/account?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      }
       return;
     }
     if (plan === "single" && !(appId || selected?.appId || paywall?.appId)) {
-      setMessage("Select a Steam game before buying the single-game access.");
+      setMessage("Select a Steam game before buying one-month single-game access.");
       return;
     }
     const busyKey = `${plan}-${provider}` as typeof checkoutBusy;
@@ -445,13 +461,12 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           setMessage(data.error || "Card checkout could not start.");
           return;
         }
-        const { init } = await import("@airwallex/components-sdk");
-        const { payments } = await init({
+        const { init, redirectToCheckout } = await import("@airwallex/components-sdk");
+        await init({
           env: data.env || "prod",
           enabledElements: ["payments"],
         });
-        if (!payments) throw new Error("Airwallex payment page is unavailable.");
-        payments.redirectToCheckout({
+        const redirectResult = redirectToCheckout({
           intent_id: data.id,
           client_secret: data.clientSecret,
           currency: data.currency || "USD",
@@ -459,6 +474,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           methods: ["card"],
           successUrl: data.successUrl,
         });
+        if (typeof redirectResult === "string") window.location.assign(redirectResult);
         return;
       }
       if (!response.ok || !data.checkoutUrl) {
@@ -918,13 +934,14 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             Steam Guardrail supports two paid options: one-month access for a single selected game, or recurring monthly
             access for repeated Steam purchase decisions.
           </p>
+          {message ? <div className="error-box neutral">{message}</div> : null}
         </div>
         <div className="pricing-grid">
           <article className="price-card featured">
             <p className="eyebrow">Default choice</p>
             <h2>$29.99</h2>
             <p>One-month access to the complete report for one selected Steam game, bound to your registered account.</p>
-            <button type="button" onClick={() => checkout("single", checkoutAppId)} disabled={checkoutBusy !== null || !checkoutAppId}>
+            <button type="button" onClick={() => checkout("single", selectedCheckoutGame)} disabled={checkoutBusy !== null}>
               {checkoutBusy === "single-airwallex" ? "Opening checkout..." : "Pay $29.99"}
             </button>
           </article>
@@ -932,7 +949,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             <p className="eyebrow">Recurring monthly</p>
             <h2>$25.99/mo</h2>
             <p>Continuous monthly access for Steam sales, wishlist reviews, and repeated purchase decisions.</p>
-            <button type="button" onClick={() => checkout("monthly", checkoutAppId)} disabled={checkoutBusy !== null}>
+            <button type="button" onClick={() => checkout("monthly", selectedCheckoutGame)} disabled={checkoutBusy !== null}>
               {checkoutBusy === "monthly-airwallex" ? "Opening checkout..." : "Subscribe $25.99/mo"}
             </button>
           </article>
@@ -940,7 +957,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       </section>
       ) : null}
 
-      {(showReviews || showPricing) && paywall ? (
+      {showReviews && paywall ? (
         <section className="pricing-grid checkout-pricing" aria-label="Checkout plans">
           <article className="price-card featured">
             <p className="eyebrow">Default choice</p>
