@@ -130,6 +130,10 @@ function formatScore(value: number) {
   return Math.round(value);
 }
 
+function gameInitial(name?: string) {
+  return (name || "Game").trim().slice(0, 1).toUpperCase();
+}
+
 type SitePage = "home" | "reviews" | "pricing" | "account";
 
 const heroSlides = [
@@ -446,6 +450,14 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     document.querySelector(".checkout-pricing, .pricing-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function showPlansForReport() {
+    if (!report) return;
+    setPaywall((current) => current || { appId: report.appId, plans: [] });
+    window.setTimeout(() => {
+      document.querySelector(".checkout-pricing, .pricing-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }
+
   function openCheckoutDialog(plan: "single" | "monthly", appId?: string) {
     if (!user) {
       setMessage("Create an account or log in before checkout.");
@@ -568,7 +580,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           <a className={showHome ? "active" : ""} href="/">Home</a>
           <a className={showReviews ? "active" : ""} href="/reviews">Review Analysis</a>
           <a className={showPricing ? "active" : ""} href="/pricing">Pricing</a>
-          <a className={`account-nav ${showAccount ? "active" : ""}`} href="/account">
+          <a className={`account-nav ${showAccount ? "active" : ""}`} href="/account" title={user ? "View account and subscription details" : "Register or log in"}>
             {user ? (
               <>
                 <span className="account-avatar" aria-hidden="true">
@@ -636,7 +648,9 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             {topFiveGames.map((game, index) => (
               <article key={game.appId} className="top-five-feature">
                 <a href={`/reviews?app=${game.appId}`}>
-                  {game.image ? <img src={game.image} alt={`${game.name} Steam review`} /> : null}
+                  <div className="game-cover owned-art" aria-hidden="true">
+                    <span>{gameInitial(game.name)}</span>
+                  </div>
                   <div>
                     <span>#{index + 1} Trending</span>
                     <strong>{game.name}</strong>
@@ -775,7 +789,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 onClick={() => selectGame(game)}
               >
                 <span className="rank-badge">{index + 1}</span>
-                <img src={game.image} alt="" />
+                <span className="game-thumb" aria-hidden="true">{gameInitial(game.name)}</span>
                 <div className="game-title">
                   <strong>{game.name}</strong>
                   <small>Risk {game.riskScore}/100</small>
@@ -797,7 +811,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                     onClick={() => selectGame(game)}
                   >
                     <span className="rank-badge">{index + 11}</span>
-                    <img src={game.image} alt="" />
+                    <span className="game-thumb" aria-hidden="true">{gameInitial(game.name)}</span>
                     <div className="game-title">
                       <strong>{game.name}</strong>
                       <small>Risk {game.riskScore}/100</small>
@@ -865,10 +879,29 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               <strong>{user.username || user.email}</strong>
               <span>{user.email}</span>
               <span>Your paid reports and monthly unlocks follow this account across devices.</span>
+              <div className="account-list account-details">
+                <div>
+                  <span>Username</span>
+                  <strong>{user.username || "Not set"}</strong>
+                </div>
+                <div>
+                  <span>Email</span>
+                  <strong>{user.email}</strong>
+                </div>
+                <div>
+                  <span>Account role</span>
+                  <strong>{user.role}</strong>
+                </div>
+                <div>
+                  <span>Account ID</span>
+                  <strong>{user.id.slice(0, 10)}</strong>
+                </div>
+              </div>
               <div className="account-box">
                 <span>Active subscriptions</span>
                 <strong>{entitlements.filter((item) => item.status === "active" && item.kind === "monthly").length}</strong>
               </div>
+              <p className="eyebrow">Subscriptions and paid access</p>
               <div className="account-list">
                 {(entitlements.length ? entitlements : [{ kind: "none", status: "No active paid access", createdAt: Date.now() }]).slice(0, 4).map((item, index) => (
                   <div key={`${item.kind}-${item.appId || index}`}>
@@ -1059,7 +1092,9 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       {showReviews && report ? (
         <>
           <section className="game-summary">
-            <div className="game-art">{report.game.image ? <img src={report.game.image} alt="" /> : null}</div>
+            <div className="game-art owned-art" aria-hidden="true">
+              <span>{gameInitial(report.game.name)}</span>
+            </div>
             <div className="game-facts">
               <p className="eyebrow">Paid full report</p>
               <h2>{report.game.name}</h2>
@@ -1109,7 +1144,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 <h2>Register and subscribe to unlock the full report</h2>
                 <p>Full access unlocks platform feedback, Steam reviews, Reddit threads, characters, scenes, game tips, and detailed purchase analysis.</p>
               </div>
-              <button type="button" onClick={() => setPaywall(paywall || { appId: report.appId, plans: [] })}>
+              <button type="button" onClick={showPlansForReport}>
                 View plans
               </button>
             </section>
@@ -1393,14 +1428,6 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                   <label htmlFor="card-number">Card number</label>
                   <input id="card-number" name="cardNumber" autoComplete="cc-number" inputMode="numeric" placeholder="1234 1234 1234 1234" required />
                 </div>
-                <div className="form-row">
-                  <label htmlFor="card-expiry">Expiry</label>
-                  <input id="card-expiry" name="cardExpiry" autoComplete="cc-exp" placeholder="MM / YY" required />
-                </div>
-                <div className="form-row">
-                  <label htmlFor="card-cvc">CVC</label>
-                  <input id="card-cvc" name="cardCvc" autoComplete="cc-csc" inputMode="numeric" placeholder="CVC" required />
-                </div>
                 <div className="form-row wide">
                   <label htmlFor="billing-email">Email address</label>
                   <input id="billing-email" name="billingEmail" type="email" autoComplete="email" defaultValue={user?.email || ""} placeholder="player@example.com" required />
@@ -1408,14 +1435,6 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 <div className="form-row wide">
                   <label htmlFor="billing-address">Billing address</label>
                   <input id="billing-address" name="billingAddress" autoComplete="billing street-address" placeholder="Street address" required />
-                </div>
-                <div className="form-row">
-                  <label htmlFor="billing-city">City</label>
-                  <input id="billing-city" name="billingCity" autoComplete="billing address-level2" placeholder="City" required />
-                </div>
-                <div className="form-row">
-                  <label htmlFor="billing-postal">Postal code</label>
-                  <input id="billing-postal" name="billingPostal" autoComplete="billing postal-code" placeholder="ZIP / Postal" required />
                 </div>
                 <p className="secure-note">
                   These fields stay in the browser for checkout preparation. Final card authorization is completed on Airwallex secure payment infrastructure.
@@ -1482,7 +1501,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
         <div className="footer-bottom">
           <small>© 2026 Steam Guardrail. All rights reserved.</small>
           <small>
-            Independent purchase-assistance tool. Not affiliated with Valve, Steam, Reddit, YouTube, TikTok, Facebook, or Instagram.
+            Independent purchase-assistance tool. Hero visuals are original site assets; game data is summarized from public sources. Not affiliated with Valve, Steam, Reddit, YouTube, TikTok, Facebook, or Instagram.
           </small>
         </div>
       </footer>

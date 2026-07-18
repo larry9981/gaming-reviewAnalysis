@@ -402,16 +402,35 @@ button {
   border-color: rgba(94, 225, 139, 0.62);
 }
 
-.top-five-feature img {
-  border-radius: 6px;
-  height: 116px;
-  object-fit: cover;
-  width: 100%;
-}
-
 .top-five-feature div {
   display: grid;
   gap: 7px;
+}
+
+.owned-art {
+  background:
+    radial-gradient(circle at 22% 18%, rgba(94, 225, 139, 0.32), transparent 30%),
+    radial-gradient(circle at 86% 82%, rgba(98, 214, 255, 0.28), transparent 34%),
+    linear-gradient(135deg, #111a25, #070b11);
+  border: 1px solid rgba(98, 214, 255, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+}
+
+.game-cover {
+  align-items: center;
+  border-radius: 6px;
+  display: flex;
+  height: 116px;
+  justify-content: center;
+  width: 100%;
+}
+
+.game-cover span,
+.game-art span {
+  color: rgba(229, 246, 255, 0.92);
+  font-size: 54px;
+  font-weight: 950;
+  line-height: 1;
 }
 
 .top-five-feature span {
@@ -880,6 +899,11 @@ h1 {
   text-transform: uppercase;
 }
 
+.account-details strong {
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
 .account-links {
   display: grid;
   gap: 8px;
@@ -969,19 +993,11 @@ h1 {
 
 .game-art {
   align-content: center;
-  background: #0d141e;
-  border: 1px solid #263649;
   border-radius: 8px;
   display: grid;
+  justify-items: center;
   min-height: 150px;
   overflow: hidden;
-}
-
-.game-art img {
-  display: block;
-  height: 100%;
-  object-fit: cover;
-  width: 100%;
 }
 
 .game-facts {
@@ -1426,10 +1442,19 @@ button:hover {
   width: 38px;
 }
 
-.game-row img {
+.game-thumb {
+  align-items: center;
+  background:
+    radial-gradient(circle at 24% 18%, rgba(94, 225, 139, 0.24), transparent 34%),
+    linear-gradient(135deg, #101a24, #080d14);
+  border: 1px solid #2a3d51;
   border-radius: 5px;
+  color: #dff7ff;
+  display: flex;
+  font-size: 18px;
+  font-weight: 950;
   height: 45px;
-  object-fit: cover;
+  justify-content: center;
   width: 96px;
 }
 
@@ -2263,7 +2288,7 @@ input[type="range"] {
     grid-template-columns: 1fr;
   }
 
-  .top-five-feature img {
+  .game-cover {
     height: 170px;
   }
 
@@ -2297,7 +2322,7 @@ input[type="range"] {
     grid-template-columns: 38px minmax(0, 1fr);
   }
 
-  .game-row img {
+  .game-thumb {
     display: none;
   }
 
