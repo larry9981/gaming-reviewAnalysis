@@ -114,6 +114,14 @@ type Paywall = {
   plans: { id: "single" | "monthly"; label: string; price: string; appId?: string }[];
 };
 
+type CheckoutProvider = "paypal" | "airwallex";
+
+type CheckoutDialog = {
+  plan: "single" | "monthly";
+  appId?: string;
+  provider: CheckoutProvider;
+};
+
 function formatNumber(value?: number | null) {
   return typeof value === "number" ? value.toLocaleString("en-US") : "Unknown";
 }
@@ -163,6 +171,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const [checkoutBusy, setCheckoutBusy] = useState<
     "single-stripe" | "single-paypal" | "single-airwallex" | "monthly-stripe" | "monthly-paypal" | "monthly-airwallex" | null
   >(null);
+  const [checkoutDialog, setCheckoutDialog] = useState<CheckoutDialog | null>(null);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -437,7 +446,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     document.querySelector(".checkout-pricing, .pricing-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  async function checkout(plan: "single" | "monthly", appId?: string, provider: "stripe" | "paypal" | "airwallex" = "airwallex") {
+  function openCheckoutDialog(plan: "single" | "monthly", appId?: string) {
     if (!user) {
       setMessage("Create an account or log in before checkout.");
       if (showAccount) {
@@ -451,6 +460,15 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       setMessage("Select a Steam game before buying one-month single-game access.");
       return;
     }
+    setMessage("");
+    setCheckoutDialog({
+      plan,
+      appId: appId || selected?.appId || paywall?.appId,
+      provider: "paypal",
+    });
+  }
+
+  async function checkout(plan: "single" | "monthly", appId?: string, provider: CheckoutProvider = "paypal") {
     const busyKey = `${plan}-${provider}` as typeof checkoutBusy;
     setCheckoutBusy(busyKey);
     setMessage(provider === "paypal" ? "Opening PayPal checkout..." : "Opening card checkout...");
@@ -502,6 +520,11 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     } finally {
       setCheckoutBusy(null);
     }
+  }
+
+  async function continueCheckout() {
+    if (!checkoutDialog) return;
+    await checkout(checkoutDialog.plan, checkoutDialog.appId, checkoutDialog.provider);
   }
 
   async function loadAdmin() {
@@ -967,16 +990,16 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             <p className="eyebrow">Default choice</p>
             <h2>$29.99</h2>
             <p>One-month access to the complete report for one selected Steam game, bound to your registered account.</p>
-            <button type="button" onClick={() => checkout("single", selectedCheckoutGame)} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "single-airwallex" ? "Opening checkout..." : "Pay $29.99"}
+            <button type="button" onClick={() => openCheckoutDialog("single", selectedCheckoutGame)} disabled={checkoutBusy !== null}>
+              {checkoutBusy?.startsWith("single-") ? "Opening checkout..." : "Pay $29.99"}
             </button>
           </article>
           <article className="price-card">
             <p className="eyebrow">Recurring monthly</p>
             <h2>$25.99/mo</h2>
             <p>Continuous monthly access for Steam sales, wishlist reviews, and repeated purchase decisions.</p>
-            <button type="button" onClick={() => checkout("monthly", selectedCheckoutGame)} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "monthly-airwallex" ? "Opening checkout..." : "Subscribe $25.99/mo"}
+            <button type="button" onClick={() => openCheckoutDialog("monthly", selectedCheckoutGame)} disabled={checkoutBusy !== null}>
+              {checkoutBusy?.startsWith("monthly-") ? "Opening checkout..." : "Subscribe $25.99/mo"}
             </button>
           </article>
         </div>
@@ -989,16 +1012,16 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             <p className="eyebrow">Default choice</p>
             <h2>$29.99</h2>
             <p>One-month access to the complete buy-or-skip report for Steam App {paywall.appId}, tied to your account.</p>
-            <button type="button" onClick={() => checkout("single", paywall.appId)} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "single-airwallex" ? "Opening checkout..." : "Pay $29.99"}
+            <button type="button" onClick={() => openCheckoutDialog("single", paywall.appId)} disabled={checkoutBusy !== null}>
+              {checkoutBusy?.startsWith("single-") ? "Opening checkout..." : "Pay $29.99"}
             </button>
           </article>
           <article className="price-card">
             <p className="eyebrow">Recurring monthly</p>
             <h2>$25.99/mo</h2>
             <p>Unlimited full reports while your subscription remains active. Compare wishlisted games before every checkout.</p>
-            <button type="button" onClick={() => checkout("monthly", paywall.appId)} disabled={checkoutBusy !== null}>
-              {checkoutBusy === "monthly-airwallex" ? "Opening checkout..." : "Subscribe $25.99/mo"}
+            <button type="button" onClick={() => openCheckoutDialog("monthly", paywall.appId)} disabled={checkoutBusy !== null}>
+              {checkoutBusy?.startsWith("monthly-") ? "Opening checkout..." : "Subscribe $25.99/mo"}
             </button>
           </article>
           <article className="price-card">
@@ -1006,8 +1029,12 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             <h2>Account-bound access</h2>
             <p>Payment starts only after login. Successful payments are verified server-side and attached to your registered user account.</p>
             <div className="method-row">
+              <span>Default payment</span>
+              <strong>PayPal</strong>
+            </div>
+            <div className="method-row">
               <span>Credit cards</span>
-              <strong>Airwallex Live</strong>
+              <strong>Airwallex</strong>
             </div>
             <div className="method-row">
               <span>Default plan</span>
@@ -1296,6 +1323,68 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             </ul>
           </section>
         </>
+      ) : null}
+
+      {checkoutDialog ? (
+        <div className="checkout-modal-backdrop" role="presentation" onClick={() => (checkoutBusy ? undefined : setCheckoutDialog(null))}>
+          <section
+            className="checkout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="checkout-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">Secure payment</p>
+                <h2 id="checkout-modal-title">
+                  {checkoutDialog.plan === "single" ? "Pay $29.99" : "Subscribe $25.99/mo"}
+                </h2>
+              </div>
+              <button type="button" className="modal-close" onClick={() => setCheckoutDialog(null)} disabled={checkoutBusy !== null} aria-label="Close payment dialog">
+                Close
+              </button>
+            </div>
+            <p className="modal-copy">
+              Choose how you want to pay. PayPal is selected by default; card payments are securely processed by Airwallex.
+            </p>
+            <div className="payment-methods" role="radiogroup" aria-label="Payment method">
+              <button
+                type="button"
+                className={checkoutDialog.provider === "paypal" ? "active" : ""}
+                onClick={() => setCheckoutDialog({ ...checkoutDialog, provider: "paypal" })}
+                role="radio"
+                aria-checked={checkoutDialog.provider === "paypal"}
+              >
+                <strong>PayPal</strong>
+                <span>Default · Pay with PayPal balance or PayPal-supported cards</span>
+              </button>
+              <button
+                type="button"
+                className={checkoutDialog.provider === "airwallex" ? "active" : ""}
+                onClick={() => setCheckoutDialog({ ...checkoutDialog, provider: "airwallex" })}
+                role="radio"
+                aria-checked={checkoutDialog.provider === "airwallex"}
+              >
+                <strong>Credit card</strong>
+                <span>Visa / Mastercard through Airwallex checkout</span>
+              </button>
+            </div>
+            <div className="modal-summary">
+              <div>
+                <span>Plan</span>
+                <strong>{checkoutDialog.plan === "single" ? "One-month single report" : "Recurring monthly access"}</strong>
+              </div>
+              <div>
+                <span>Provider</span>
+                <strong>{checkoutDialog.provider === "paypal" ? "PayPal" : "Airwallex card"}</strong>
+              </div>
+            </div>
+            <button type="button" className="primary-action modal-pay-button" onClick={continueCheckout} disabled={checkoutBusy !== null}>
+              {checkoutBusy ? "Opening secure checkout..." : checkoutDialog.provider === "paypal" ? "Continue with PayPal" : "Continue with credit card"}
+            </button>
+          </section>
+        </div>
       ) : null}
 
       <footer className="site-footer">
