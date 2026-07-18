@@ -1900,6 +1900,10 @@ button:hover {
   line-height: 1.55;
 }
 
+.modal-message {
+  margin: 0;
+}
+
 .payment-methods {
   display: grid;
   gap: 10px;
@@ -1933,6 +1937,55 @@ button:hover {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
+}
+
+.card-entry-form {
+  background: rgba(8, 11, 16, 0.72);
+  border: 1px solid #2b3b4f;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 14px;
+}
+
+.form-row {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.form-row.wide {
+  grid-column: 1 / -1;
+}
+
+.form-row label {
+  color: #d9e8f5;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.form-row input {
+  background: #090f17;
+  border: 1px solid #33445a;
+  border-radius: 7px;
+  color: var(--foreground);
+  font: inherit;
+  min-height: 42px;
+  min-width: 0;
+  padding: 10px 11px;
+}
+
+.form-row input:focus {
+  border-color: rgba(98, 214, 255, 0.68);
+  outline: none;
+}
+
+.secure-note {
+  color: var(--muted);
+  font-size: 12px;
+  grid-column: 1 / -1;
+  line-height: 1.45;
 }
 
 .modal-summary {
@@ -2264,6 +2317,11 @@ input[type="range"] {
   }
 
   .bar-item {
+    grid-template-columns: 1fr;
+  }
+
+  .card-entry-form,
+  .modal-summary {
     grid-template-columns: 1fr;
   }
 

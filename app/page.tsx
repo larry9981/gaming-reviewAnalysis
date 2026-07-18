@@ -468,7 +468,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     });
   }
 
-  async function checkout(plan: "single" | "monthly", appId?: string, provider: CheckoutProvider = "paypal") {
+  async function checkout(plan: "single" | "monthly", appId?: string, provider: CheckoutProvider = "paypal", paymentWindow?: Window | null) {
     const busyKey = `${plan}-${provider}` as typeof checkoutBusy;
     setCheckoutBusy(busyKey);
     setMessage(provider === "paypal" ? "Opening PayPal checkout..." : "Opening card checkout...");
@@ -483,6 +483,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       const data = await response.json().catch(() => ({ error: "Checkout could not start. Please try again." }));
       if (provider === "airwallex") {
         if (!response.ok || !data.id || !data.clientSecret) {
+          paymentWindow?.close();
           setMessage(data.error || "Card checkout could not start.");
           return;
         }
@@ -506,11 +507,17 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
         return;
       }
       if (!response.ok || !data.checkoutUrl) {
+        paymentWindow?.close();
         setMessage(data.error || "Checkout could not start.");
         return;
       }
-      window.location.assign(data.checkoutUrl);
+      if (paymentWindow) {
+        paymentWindow.location.href = data.checkoutUrl;
+      } else {
+        window.location.assign(data.checkoutUrl);
+      }
     } catch (error) {
+      paymentWindow?.close();
       const detail = error instanceof Error ? error.message : "";
       setMessage(
         /merchant configuration|account manager|no available payment methods|not configured/i.test(detail)
@@ -524,7 +531,12 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
 
   async function continueCheckout() {
     if (!checkoutDialog) return;
-    await checkout(checkoutDialog.plan, checkoutDialog.appId, checkoutDialog.provider);
+    if (checkoutDialog.provider === "airwallex") {
+      const form = document.getElementById("card-billing-form") as HTMLFormElement | null;
+      if (form && !form.reportValidity()) return;
+    }
+    const paymentWindow = checkoutDialog.provider === "paypal" ? window.open("about:blank", "steam_guardrail_paypal") : null;
+    await checkout(checkoutDialog.plan, checkoutDialog.appId, checkoutDialog.provider, paymentWindow);
   }
 
   async function loadAdmin() {
@@ -1348,6 +1360,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             <p className="modal-copy">
               Choose how you want to pay. PayPal is selected by default; card payments are securely processed by Airwallex.
             </p>
+            {message ? <div className="error-box neutral modal-message">{message}</div> : null}
             <div className="payment-methods" role="radiogroup" aria-label="Payment method">
               <button
                 type="button"
@@ -1370,6 +1383,45 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 <span>Visa / Mastercard through Airwallex checkout</span>
               </button>
             </div>
+            {checkoutDialog.provider === "airwallex" ? (
+              <form id="card-billing-form" className="card-entry-form">
+                <div className="form-row wide">
+                  <label htmlFor="card-name">Name on card</label>
+                  <input id="card-name" name="cardName" autoComplete="cc-name" placeholder="Jane Player" required />
+                </div>
+                <div className="form-row wide">
+                  <label htmlFor="card-number">Card number</label>
+                  <input id="card-number" name="cardNumber" autoComplete="cc-number" inputMode="numeric" placeholder="1234 1234 1234 1234" required />
+                </div>
+                <div className="form-row">
+                  <label htmlFor="card-expiry">Expiry</label>
+                  <input id="card-expiry" name="cardExpiry" autoComplete="cc-exp" placeholder="MM / YY" required />
+                </div>
+                <div className="form-row">
+                  <label htmlFor="card-cvc">CVC</label>
+                  <input id="card-cvc" name="cardCvc" autoComplete="cc-csc" inputMode="numeric" placeholder="CVC" required />
+                </div>
+                <div className="form-row wide">
+                  <label htmlFor="billing-email">Email address</label>
+                  <input id="billing-email" name="billingEmail" type="email" autoComplete="email" defaultValue={user?.email || ""} placeholder="player@example.com" required />
+                </div>
+                <div className="form-row wide">
+                  <label htmlFor="billing-address">Billing address</label>
+                  <input id="billing-address" name="billingAddress" autoComplete="billing street-address" placeholder="Street address" required />
+                </div>
+                <div className="form-row">
+                  <label htmlFor="billing-city">City</label>
+                  <input id="billing-city" name="billingCity" autoComplete="billing address-level2" placeholder="City" required />
+                </div>
+                <div className="form-row">
+                  <label htmlFor="billing-postal">Postal code</label>
+                  <input id="billing-postal" name="billingPostal" autoComplete="billing postal-code" placeholder="ZIP / Postal" required />
+                </div>
+                <p className="secure-note">
+                  These fields stay in the browser for checkout preparation. Final card authorization is completed on Airwallex secure payment infrastructure.
+                </p>
+              </form>
+            ) : null}
             <div className="modal-summary">
               <div>
                 <span>Plan</span>
