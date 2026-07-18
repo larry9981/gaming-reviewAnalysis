@@ -2007,6 +2007,18 @@ button:hover {
   width: min(560px, 100%);
 }
 
+.plans-modal {
+  max-width: 760px;
+}
+
+.auth-modal-layer {
+  z-index: 22;
+}
+
+.auth-checkout-modal {
+  max-width: 480px;
+}
+
 .modal-heading {
   align-items: start;
   display: flex;
@@ -2030,6 +2042,22 @@ button:hover {
 .modal-copy {
   color: #b8c8d6;
   line-height: 1.55;
+}
+
+.modal-plan-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modal-input {
+  background: #090f17;
+  border: 1px solid #33445a;
+  border-radius: 7px;
+  color: var(--foreground);
+  min-height: 44px;
+  min-width: 0;
+  padding: 10px 11px;
 }
 
 .modal-message {
@@ -2337,10 +2365,6 @@ input[type="range"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .checkout-pricing .price-card:last-child {
-    grid-column: 1 / -1;
-  }
-
   .fact-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2578,6 +2602,7 @@ input[type="range"] {
 
   .card-entry-form,
   .config-pair,
+  .modal-plan-grid,
   .modal-summary {
     grid-template-columns: 1fr;
   }

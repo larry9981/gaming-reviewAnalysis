@@ -211,6 +211,8 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const [reportLocked, setReportLocked] = useState(false);
   const [reportBusy, setReportBusy] = useState(false);
   const [paywall, setPaywall] = useState<Paywall | null>(null);
+  const [plansDialog, setPlansDialog] = useState<Paywall | null>(null);
+  const [authDialog, setAuthDialog] = useState(false);
   const [message, setMessage] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
@@ -412,6 +414,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       setUser(data.user);
       setPassword("");
       setMessage("You are signed in. You can continue to checkout.");
+      setAuthDialog(false);
       await loadMe();
       const returnTo = new URLSearchParams(window.location.search).get("returnTo");
       if (returnTo?.startsWith("/")) {
@@ -517,33 +520,27 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   }
 
   function openPaidPlatform() {
-    setMessage("Choose a paid plan to open detailed platform feedback sources.");
+    setMessage("Click View plans to unlock detailed platform feedback sources.");
     setPaywall((current) => current || (report ? { appId: report.appId, plans: [] } : null));
-    document.querySelector(".pricing-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function requestPaidDetail(detail = "detailed source links") {
-    setMessage(user ? `Choose a paid plan to unlock ${detail}.` : `Register or log in, then choose a paid plan to unlock ${detail}.`);
+    setMessage(user ? `Click View plans to unlock ${detail}.` : `Click View plans, then register or log in to unlock ${detail}.`);
     setPaywall((current) => current || (report ? { appId: report.appId, plans: [] } : null));
-    document.querySelector(".checkout-pricing, .pricing-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function showPlansForReport() {
     if (!report) return;
-    setPaywall((current) => current || { appId: report.appId, plans: [] });
-    window.setTimeout(() => {
-      document.querySelector(".checkout-pricing, .pricing-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 0);
+    const nextPaywall = paywall || { appId: report.appId, plans: [] };
+    setPaywall(nextPaywall);
+    setPlansDialog(nextPaywall);
   }
 
   function openCheckoutDialog(plan: "single" | "monthly", appId?: string) {
     if (!user) {
-      setMessage("Create an account or log in before checkout.");
-      if (showAccount) {
-        document.querySelector(".auth-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      } else {
-        window.location.assign(`/account?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
-      }
+      setMessage("Please register or log in before checkout.");
+      setAuthMode("login");
+      setAuthDialog(true);
       return;
     }
     if (plan === "single" && !(appId || selected?.appId || paywall?.appId)) {
@@ -551,6 +548,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       return;
     }
     setMessage("");
+    setPlansDialog(null);
     setCheckoutDialog({
       plan,
       appId: appId || selected?.appId || paywall?.appId,
@@ -1340,44 +1338,6 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       </section>
       ) : null}
 
-      {showReviews && paywall ? (
-        <section className="pricing-grid checkout-pricing" aria-label="Checkout plans">
-          <article className="price-card featured">
-            <p className="eyebrow">Default choice</p>
-            <h2>$29.99</h2>
-            <p>One-month access to the complete buy-or-skip report for Steam App {paywall.appId}, tied to your account.</p>
-            <button type="button" onClick={() => openCheckoutDialog("single", paywall.appId)} disabled={checkoutBusy !== null}>
-              {checkoutBusy?.startsWith("single-") ? "Opening checkout..." : "Pay $29.99"}
-            </button>
-          </article>
-          <article className="price-card">
-            <p className="eyebrow">Recurring monthly</p>
-            <h2>$25.99/mo</h2>
-            <p>Unlimited full reports while your subscription remains active. Compare wishlisted games before every checkout.</p>
-            <button type="button" onClick={() => openCheckoutDialog("monthly", paywall.appId)} disabled={checkoutBusy !== null}>
-              {checkoutBusy?.startsWith("monthly-") ? "Opening checkout..." : "Subscribe $25.99/mo"}
-            </button>
-          </article>
-          <article className="price-card">
-            <p className="eyebrow">Secure checkout</p>
-            <h2>Account-bound access</h2>
-            <p>Payment starts only after login. Successful payments are verified server-side and attached to your registered user account.</p>
-            <div className="method-row">
-              <span>Default payment</span>
-              <strong>PayPal</strong>
-            </div>
-            <div className="method-row">
-              <span>Credit cards</span>
-              <strong>Airwallex</strong>
-            </div>
-            <div className="method-row">
-              <span>Default plan</span>
-              <strong>$29.99</strong>
-            </div>
-          </article>
-        </section>
-      ) : null}
-
       {showReviews && report ? (
         <>
           <section className="game-summary">
@@ -1657,6 +1617,92 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             </ul>
           </section>
         </>
+      ) : null}
+
+      {plansDialog ? (
+        <div className="checkout-modal-backdrop" role="presentation" onClick={() => setPlansDialog(null)}>
+          <section
+            className="checkout-modal plans-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="plans-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">Unlock full analysis</p>
+                <h2 id="plans-modal-title">Choose your access plan</h2>
+              </div>
+              <button type="button" className="modal-close" onClick={() => setPlansDialog(null)} aria-label="Close plans dialog">
+                Close
+              </button>
+            </div>
+            <p className="modal-copy">
+              Full access unlocks complete platform feedback, Steam and Reddit source links, story notes, characters, scenes, game tips, walkthrough skills, and buyer guidance.
+            </p>
+            {message ? <div className="error-box neutral modal-message">{message}</div> : null}
+            <div className="modal-plan-grid">
+              <article className="price-card featured">
+                <p className="eyebrow">Default choice</p>
+                <h2>$29.99</h2>
+                <p>One-month access to the complete buy-or-skip report for Steam App {plansDialog.appId}.</p>
+                <button type="button" onClick={() => openCheckoutDialog("single", plansDialog.appId)} disabled={checkoutBusy !== null}>
+                  {checkoutBusy?.startsWith("single-") ? "Opening checkout..." : "Pay $29.99"}
+                </button>
+              </article>
+              <article className="price-card">
+                <p className="eyebrow">Recurring monthly</p>
+                <h2>$25.99/mo</h2>
+                <p>Unlimited full reports while your subscription remains active. Good for Steam sales and wishlist checks.</p>
+                <button type="button" onClick={() => openCheckoutDialog("monthly", plansDialog.appId)} disabled={checkoutBusy !== null}>
+                  {checkoutBusy?.startsWith("monthly-") ? "Opening checkout..." : "Subscribe $25.99/mo"}
+                </button>
+              </article>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {authDialog ? (
+        <div className="checkout-modal-backdrop auth-modal-layer" role="presentation" onClick={() => (authBusy ? undefined : setAuthDialog(false))}>
+          <section
+            className="checkout-modal auth-checkout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auth-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">Account required</p>
+                <h2 id="auth-modal-title">Log in or register first</h2>
+              </div>
+              <button type="button" className="modal-close" onClick={() => setAuthDialog(false)} disabled={authBusy} aria-label="Close login dialog">
+                Close
+              </button>
+            </div>
+            <p className="modal-copy">
+              Your payment and subscription must be attached to a registered account before checkout can start.
+            </p>
+            {message ? <div className="error-box neutral modal-message">{message}</div> : null}
+            <div className="tab-row">
+              <button type="button" className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>
+                Login
+              </button>
+              <button type="button" className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>
+                Register
+              </button>
+            </div>
+            {authMode === "register" ? (
+              <input className="modal-input" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username" />
+            ) : null}
+            <input className="modal-input" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email@example.com" />
+            <input className="modal-input" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" type="password" />
+            <button type="button" className="primary-action modal-pay-button" onClick={auth} disabled={authBusy}>
+              {authBusy ? "Working..." : authMode === "register" ? "Create account" : "Log in"}
+            </button>
+          </section>
+        </div>
       ) : null}
 
       {checkoutDialog ? (
