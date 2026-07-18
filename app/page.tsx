@@ -244,8 +244,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   } | null>(null);
 
   const highlighted = useMemo(() => selected || games[0] || null, [games, selected]);
-  const visibleGames = useMemo(() => games.slice(0, 10), [games]);
-  const hiddenGames = useMemo(() => games.slice(10), [games]);
+  const rankedGames = useMemo(() => games.slice(0, 30), [games]);
   const topFiveGames = useMemo(() => games.slice(0, 5), [games]);
   const selectedCheckoutGame = paywall?.appId || highlighted?.appId || "";
   const showHome = page === "home";
@@ -912,7 +911,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           <div className="score-row">
             <div>
               <p>Daily Steam Top 30</p>
-              <h2>Top 10 visible, 20 more inside</h2>
+              <h2>Top 5 visible, scroll for the rest</h2>
             </div>
             <button type="button" onClick={loadTrending}>
               Refresh
@@ -920,8 +919,9 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           </div>
           {loadingGames ? <div className="review-snapshot">Fetching Steam top sellers and public review signals...</div> : null}
           {gamesError ? <div className="error-box">{gamesError}</div> : null}
-          <div className="game-list">
-            {visibleGames.map((game, index) => (
+          <div className="ranked-scroll-window" aria-label="Daily Steam ranking scroll window">
+            <div className="game-list">
+            {rankedGames.map((game, index) => (
               <article
                 key={game.appId}
                 className={`game-row ${selected?.appId === game.appId ? "selected" : ""}`}
@@ -939,32 +939,8 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 </button>
               </article>
             ))}
+            </div>
           </div>
-          {hiddenGames.length ? (
-            <details className="more-games">
-              <summary>Show ranks 11-30</summary>
-              <div className="game-list scroll-window">
-                {hiddenGames.map((game, index) => (
-                  <article
-                    key={game.appId}
-                    className={`game-row compact ${selected?.appId === game.appId ? "selected" : ""}`}
-                  >
-                    <span className="rank-badge">{index + 11}</span>
-                    <GameImage image={game.image} name={game.name} className="game-thumb" />
-                    <div className="game-title">
-                      <strong>{game.name}</strong>
-                      <small>Risk {game.riskScore}/100</small>
-                    </div>
-                    <small>{game.reviewSummary}</small>
-                    <em className={game.tone}>{game.verdict}</em>
-                    <button type="button" className="row-analysis-button" onClick={() => selectGame(game)} disabled={reportBusy}>
-                      Analysis
-                    </button>
-                  </article>
-                ))}
-              </div>
-            </details>
-          ) : null}
         </section>
 
         <aside className={`verdict-panel ${highlighted?.tone || "watch"}`}>
@@ -1099,14 +1075,13 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                         ? "Set new password"
                         : "Log in"}
               </button>
-              <div className="account-links">
-                <button type="button" className="text-button" onClick={() => setAuthMode("forgot")}>
-                  Forgot password
-                </button>
-                <button type="button" className="text-button" onClick={() => setAuthMode("reset")}>
-                  I have a reset token
-                </button>
-              </div>
+              {authMode === "login" ? (
+                <div className="account-links">
+                  <button type="button" className="text-button" onClick={() => setAuthMode("forgot")}>
+                    Forgot password
+                  </button>
+                </div>
+              ) : null}
             </>
           )}
         </aside>
