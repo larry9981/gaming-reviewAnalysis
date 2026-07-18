@@ -142,6 +142,33 @@ button {
   width: 26px;
 }
 
+.floating-admin-link {
+  align-items: center;
+  background: rgba(8, 12, 18, 0.9);
+  border: 1px solid rgba(98, 214, 255, 0.34);
+  border-radius: 7px;
+  bottom: 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+  color: #dff7ff;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  justify-content: center;
+  min-height: 38px;
+  padding: 9px 12px;
+  position: fixed;
+  right: 18px;
+  text-decoration: none;
+  z-index: 12;
+}
+
+.floating-admin-link:hover,
+.floating-admin-link.active {
+  background: rgba(94, 225, 139, 0.14);
+  border-color: rgba(94, 225, 139, 0.52);
+  color: #ecfff2;
+}
+
 .home-page,
 .pricing-page {
   display: grid;
@@ -893,6 +920,63 @@ h1 {
 .auth-panel span {
   color: #b8c8d6;
   line-height: 1.45;
+}
+
+.account-visual {
+  aspect-ratio: 16 / 10;
+  border: 1px solid #344152;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035), 0 24px 80px rgba(0, 0, 0, 0.28);
+  display: grid;
+  min-height: 360px;
+  overflow: hidden;
+  position: relative;
+}
+
+.account-visual img {
+  filter: brightness(1.12) saturate(1.08);
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  width: 100%;
+}
+
+.account-visual::after {
+  background:
+    linear-gradient(90deg, rgba(8, 10, 14, 0.78), rgba(8, 10, 14, 0.26) 58%, rgba(8, 10, 14, 0.46)),
+    linear-gradient(180deg, rgba(8, 10, 14, 0.1), rgba(8, 10, 14, 0.62));
+  content: "";
+  inset: 0;
+  position: absolute;
+}
+
+.account-visual-copy {
+  align-self: end;
+  display: grid;
+  gap: 12px;
+  max-width: 720px;
+  min-width: 0;
+  padding: 34px;
+  position: relative;
+  z-index: 1;
+}
+
+.account-visual-copy h1 {
+  font-size: clamp(38px, 5vw, 68px);
+  line-height: 0.96;
+  overflow-wrap: anywhere;
+}
+
+.account-visual-copy p:not(.eyebrow) {
+  color: #dbe7f2;
+  font-size: 16px;
+  line-height: 1.55;
+  max-width: 640px;
+}
+
+.account-visual-message {
+  margin-top: 4px;
+  max-width: 620px;
 }
 
 .auth-pitch {
@@ -2373,6 +2457,15 @@ input[type="range"] {
     padding: 28px;
   }
 
+  .account-visual {
+    aspect-ratio: 4 / 3;
+    min-height: 330px;
+  }
+
+  .account-visual-copy {
+    padding: 28px;
+  }
+
   .game-row {
     grid-template-columns: 40px 96px minmax(0, 1fr) 120px;
   }
@@ -2447,6 +2540,29 @@ input[type="range"] {
   .funnel,
   .price-card {
     padding: 18px;
+  }
+
+  .account-visual {
+    aspect-ratio: 9 / 12;
+    min-height: 430px;
+  }
+
+  .account-visual-copy {
+    padding: 18px;
+  }
+
+  .account-visual-copy h1 {
+    font-size: 34px;
+    line-height: 1;
+  }
+
+  .account-visual-copy p:not(.eyebrow) {
+    font-size: 14px;
+  }
+
+  .floating-admin-link {
+    bottom: 12px;
+    right: 12px;
   }
 
   .banner-grid,
@@ -2640,6 +2756,14 @@ input[type="range"] {
   }
 
   .banner-copy strong {
+    font-size: 30px;
+  }
+
+  .account-visual {
+    min-height: 390px;
+  }
+
+  .account-visual-copy h1 {
     font-size: 30px;
   }
 

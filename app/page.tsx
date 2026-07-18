@@ -716,9 +716,11 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               "Register / Login"
             )}
           </a>
-          {user?.isAdmin ? <a className={showAdmin ? "active" : ""} href="/admin">Admin</a> : <a className={showAdmin ? "active" : ""} href="/admin">Admin Login</a>}
         </nav>
       </header>
+      <a className={`floating-admin-link ${showAdmin ? "active" : ""}`} href="/admin">
+        {user?.isAdmin ? "Admin" : "Admin Login"}
+      </a>
 
       {showHome ? (
       <section className="home-page">
@@ -988,13 +990,18 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       {showAccount ? (
       <>
       <section className="hero-band account-page">
-        <div className="hero-copy">
-          <p className="eyebrow">Account access</p>
-          <h1>Register, log in, and manage your Steam reports.</h1>
-          <p className="subcopy">
-            Save report unlocks, review your subscription status, cancel monthly access, and let admins export user and payment data.
-          </p>
-          {message ? <div className="error-box neutral">{message}</div> : null}
+        <div className="account-visual">
+          <img src="/hero/steam-guardrail-hero-2.png" alt="" />
+          <div className="account-visual-copy">
+            <p className="eyebrow">{user ? "Player profile" : "Account access"}</p>
+            <h1>{user ? `${user.username || "Player"} dashboard` : "Register, log in, and manage your Steam reports."}</h1>
+            <p>
+              {user
+                ? "Review your saved access, subscription status, and purchase-ready Steam analysis from one account center."
+                : "Save report unlocks, review your subscription status, and keep every paid report tied to your account."}
+            </p>
+            {message ? <div className="error-box neutral account-visual-message">{message}</div> : null}
+          </div>
         </div>
         <aside className="auth-panel">
           <p className="eyebrow">Player account</p>
@@ -1823,7 +1830,6 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           <a href="/reviews">Review Analysis</a>
           <a href="/pricing">Pricing</a>
           <a href="/account">Register / Login</a>
-          <a href="/admin">Admin Login</a>
         </nav>
         <nav className="footer-column" aria-label="Company navigation">
           <strong>Company</strong>
