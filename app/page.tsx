@@ -134,6 +134,27 @@ function gameInitial(name?: string) {
   return (name || "Game").trim().slice(0, 1).toUpperCase();
 }
 
+function GameImage({
+  image,
+  name,
+  className,
+}: {
+  image?: string;
+  name: string;
+  className: string;
+}) {
+  return image ? (
+    <figure className={`${className} referenced-game-art`}>
+      <img src={image} alt={`${name} official store artwork`} />
+      <figcaption>Image copyright: respective publisher. Source: Steam public store asset.</figcaption>
+    </figure>
+  ) : (
+    <div className={`${className} owned-art`} aria-hidden="true">
+      <span>{gameInitial(name)}</span>
+    </div>
+  );
+}
+
 type SitePage = "home" | "reviews" | "pricing" | "account";
 
 const heroSlides = [
@@ -648,9 +669,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             {topFiveGames.map((game, index) => (
               <article key={game.appId} className="top-five-feature">
                 <a href={`/reviews?app=${game.appId}`}>
-                  <div className="game-cover owned-art" aria-hidden="true">
-                    <span>{gameInitial(game.name)}</span>
-                  </div>
+                  <GameImage image={game.image} name={game.name} className="game-cover" />
                   <div>
                     <span>#{index + 1} Trending</span>
                     <strong>{game.name}</strong>
@@ -789,7 +808,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 onClick={() => selectGame(game)}
               >
                 <span className="rank-badge">{index + 1}</span>
-                <span className="game-thumb" aria-hidden="true">{gameInitial(game.name)}</span>
+                <GameImage image={game.image} name={game.name} className="game-thumb" />
                 <div className="game-title">
                   <strong>{game.name}</strong>
                   <small>Risk {game.riskScore}/100</small>
@@ -811,7 +830,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                     onClick={() => selectGame(game)}
                   >
                     <span className="rank-badge">{index + 11}</span>
-                    <span className="game-thumb" aria-hidden="true">{gameInitial(game.name)}</span>
+                    <GameImage image={game.image} name={game.name} className="game-thumb" />
                     <div className="game-title">
                       <strong>{game.name}</strong>
                       <small>Risk {game.riskScore}/100</small>
@@ -1092,9 +1111,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       {showReviews && report ? (
         <>
           <section className="game-summary">
-            <div className="game-art owned-art" aria-hidden="true">
-              <span>{gameInitial(report.game.name)}</span>
-            </div>
+            <GameImage image={report.game.image} name={report.game.name} className="game-art" />
             <div className="game-facts">
               <p className="eyebrow">Paid full report</p>
               <h2>{report.game.name}</h2>
@@ -1428,6 +1445,14 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                   <label htmlFor="card-number">Card number</label>
                   <input id="card-number" name="cardNumber" autoComplete="cc-number" inputMode="numeric" placeholder="1234 1234 1234 1234" required />
                 </div>
+                <div className="form-row">
+                  <label htmlFor="card-expiry">Expiry</label>
+                  <input id="card-expiry" name="cardExpiry" autoComplete="cc-exp" placeholder="MM / YY" required />
+                </div>
+                <div className="form-row">
+                  <label htmlFor="card-cvc">CVC</label>
+                  <input id="card-cvc" name="cardCvc" autoComplete="cc-csc" inputMode="numeric" placeholder="CVC" required />
+                </div>
                 <div className="form-row wide">
                   <label htmlFor="billing-email">Email address</label>
                   <input id="billing-email" name="billingEmail" type="email" autoComplete="email" defaultValue={user?.email || ""} placeholder="player@example.com" required />
@@ -1501,7 +1526,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
         <div className="footer-bottom">
           <small>© 2026 Steam Guardrail. All rights reserved.</small>
           <small>
-            Independent purchase-assistance tool. Hero visuals are original site assets; game data is summarized from public sources. Not affiliated with Valve, Steam, Reddit, YouTube, TikTok, Facebook, or Instagram.
+            Independent purchase-assistance tool. Game images are referenced from public store/media assets and remain copyrighted by their respective publishers. Not affiliated with Valve, Steam, Reddit, YouTube, TikTok, Facebook, or Instagram.
           </small>
         </div>
       </footer>
