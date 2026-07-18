@@ -33,6 +33,10 @@ function airwallexSdkEnv() {
   return env.AIRWALLEX_ENV === "demo" || env.AIRWALLEX_ENV === "sandbox" ? "demo" : "prod";
 }
 
+function airwallexCountryCode() {
+  return env.AIRWALLEX_COUNTRY_CODE || "US";
+}
+
 async function airwallexAccessToken() {
   if (!env.AIRWALLEX_CLIENT_ID || !env.AIRWALLEX_API_KEY) {
     throw new Error("Airwallex is not configured. Add AIRWALLEX_CLIENT_ID and AIRWALLEX_API_KEY.");
@@ -96,12 +100,19 @@ export async function createAirwallexPaymentIntent({
   });
   const data = (await response.json()) as AirwallexIntent;
   if (!response.ok || !data.id || !data.client_secret) {
-    throw new Error(data.message || data.code || "Airwallex payment intent could not be created.");
+    const message = data.message || data.code || "Airwallex payment intent could not be created.";
+    if (/merchant configuration|account manager|no available payment methods|not configured/i.test(message)) {
+      throw new Error(
+        "Airwallex merchant configuration does not currently allow this checkout. Enable online card payments for the selected currency/country in Airwallex, or ask your Airwallex account manager to activate it.",
+      );
+    }
+    throw new Error(message);
   }
   return {
     id: data.id,
     clientSecret: data.client_secret,
     currency,
+    countryCode: airwallexCountryCode(),
     env: airwallexSdkEnv(),
     successUrl: `${origin}/?airwallex=success&intent_id=${encodeURIComponent(data.id)}`,
     cancelUrl: `${origin}/?airwallex=cancelled`,

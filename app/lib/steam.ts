@@ -70,6 +70,7 @@ export type AnalysisResult = {
     characters: string[];
     scenes: string[];
     tips: string[];
+    walkthroughSkills: string[];
     buyerAnalysis: string;
   };
   limitations: string[];
@@ -345,13 +346,30 @@ function buildContentBrief({
     categoryText.includes("online") ? "Check server population, anti-cheat complaints, and region matchmaking before purchase." : "Check save system, difficulty curve, and first-hour pacing before keeping it.",
     "Compare YouTube gameplay footage with written reviews; edited trailers often hide grind, UI friction, and repeated content.",
   ];
+  const walkthroughSkills = [
+    genres.some((genre) => /strategy|simulation|management/i.test(genre))
+      ? "Map the economy loop first: identify the resource that blocks progress, then build upgrades around that bottleneck instead of spreading upgrades evenly."
+      : "Spend the first hour learning the core loop before chasing side objectives; most failed runs come from ignoring tutorial combat, movement, or resource habits.",
+    genres.some((genre) => /action|shooter|fighting|souls/i.test(genre))
+      ? "Practice dodge, parry, reload, stamina, or cooldown timing in low-risk fights before pushing bosses or ranked modes."
+      : "Use early low-pressure areas to test controls, camera, inventory, quest tracking, and save behavior before passing the refund window.",
+    categoryText.includes("co-op") || categoryText.includes("multi-player") || categoryText.includes("online")
+      ? "For online progress, verify server region, matchmaking time, role balance, and anti-cheat complaints before committing to grind-heavy systems."
+      : "For solo progress, keep a manual save before major branches, difficulty spikes, or irreversible upgrades so you can recover from bad choices.",
+    genres.some((genre) => /rpg|adventure|open world/i.test(genre))
+      ? "Prioritize survivability, mobility, and utility upgrades before pure damage; this usually reduces wasted time in exploration-heavy campaigns."
+      : "Watch full gameplay segments instead of highlight clips to learn the real pacing, repeated objectives, UI friction, and endgame loop.",
+    riskScore >= 46
+      ? "Because public risk is elevated, delay advanced guides until after checking patch notes and recent negative reviews for broken quests, crashes, or balance changes."
+      : "If the signal looks healthy, use creator walkthroughs mainly to confirm build paths, hidden mechanics, and difficulty spikes rather than to decide whether to buy.",
+  ];
   const buyerAnalysis =
     riskScore >= 72
       ? `${verdictLabel}: the public signal mix suggests a high chance of buyer regret. Treat this as a waitlist game unless you strongly match its niche.`
       : riskScore >= 46
         ? `${verdictLabel}: the game may be worth watching, but the current signal mix argues against full-price impulse buying.`
         : `${verdictLabel}: public signals look relatively healthy, but the safest move is still to verify performance and recent complaints.`;
-  return { story, characters, scenes, tips, buyerAnalysis };
+  return { story, characters, scenes, tips, walkthroughSkills, buyerAnalysis };
 }
 
 export async function analyzeSteamApp(appId: string): Promise<AnalysisResult> {

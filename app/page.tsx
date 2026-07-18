@@ -101,6 +101,7 @@ type AnalysisResult = {
     characters: string[];
     scenes: string[];
     tips: string[];
+    walkthroughSkills: string[];
     buyerAnalysis: string;
   };
   limitations: string[];
@@ -430,6 +431,12 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     document.querySelector(".pricing-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function requestPaidDetail(detail = "detailed source links") {
+    setMessage(user ? `Choose a paid plan to unlock ${detail}.` : `Register or log in, then choose a paid plan to unlock ${detail}.`);
+    setPaywall((current) => current || (report ? { appId: report.appId, plans: [] } : null));
+    document.querySelector(".checkout-pricing, .pricing-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   async function checkout(plan: "single" | "monthly", appId?: string, provider: "stripe" | "paypal" | "airwallex" = "airwallex") {
     if (!user) {
       setMessage("Create an account or log in before checkout.");
@@ -462,16 +469,19 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           return;
         }
         const { init, redirectToCheckout } = await import("@airwallex/components-sdk");
-        await init({
+        const sdk = (await init({
           env: data.env || "prod",
           enabledElements: ["payments"],
-        });
-        const redirectResult = redirectToCheckout({
+        } as never)) as { payments?: { redirectToCheckout?: typeof redirectToCheckout } } | void;
+        const openHostedCheckout = sdk?.payments?.redirectToCheckout || redirectToCheckout;
+        const redirectResult = openHostedCheckout({
           intent_id: data.id,
           client_secret: data.clientSecret,
           currency: data.currency || "USD",
-          country_code: "US",
+          country_code: data.countryCode || "US",
+          shopper_email: user.email,
           methods: ["card"],
+          submitType: plan === "monthly" ? "subscribe" : "pay",
           successUrl: data.successUrl,
         });
         if (typeof redirectResult === "string") window.location.assign(redirectResult);
@@ -482,8 +492,13 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
         return;
       }
       window.location.assign(data.checkoutUrl);
-    } catch {
-      setMessage("Checkout could not start. Please check your connection and try again.");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "";
+      setMessage(
+        /merchant configuration|account manager|no available payment methods|not configured/i.test(detail)
+          ? "Card checkout is connected, but this Airwallex merchant account is not enabled for this card/currency/country configuration yet. Please enable Online Payments/card acquiring in Airwallex or contact your Airwallex account manager."
+          : "Checkout could not start. Please check your connection and try again.",
+      );
     } finally {
       setCheckoutBusy(null);
     }
@@ -518,7 +533,18 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           <a className={showHome ? "active" : ""} href="/">Home</a>
           <a className={showReviews ? "active" : ""} href="/reviews">Review Analysis</a>
           <a className={showPricing ? "active" : ""} href="/pricing">Pricing</a>
-          <a className={showAccount ? "active" : ""} href="/account">Register / Login</a>
+          <a className={`account-nav ${showAccount ? "active" : ""}`} href="/account">
+            {user ? (
+              <>
+                <span className="account-avatar" aria-hidden="true">
+                  {(user.username || user.email).slice(0, 1).toUpperCase()}
+                </span>
+                <span>{user.username || user.email}</span>
+              </>
+            ) : (
+              "Register / Login"
+            )}
+          </a>
         </nav>
       </header>
 
@@ -1025,9 +1051,15 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                   <strong>{report.game.developers?.[0] || "Unknown"}</strong>
                 </div>
               </div>
-              <a className="source-link" href={report.game.steamUrl} target="_blank" rel="noreferrer">
-                Open Steam page
-              </a>
+              {reportLocked ? (
+                <button type="button" className="source-link locked-link" onClick={() => requestPaidDetail("the Steam source page")}>
+                  Open Steam page
+                </button>
+              ) : (
+                <a className="source-link" href={report.game.steamUrl} target="_blank" rel="noreferrer">
+                  Open Steam page
+                </a>
+              )}
             </div>
           </section>
 
@@ -1153,6 +1185,17 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                   ))}
                 </ul>
               </article>
+              <article className="pro-card">
+                <div className="panel-heading">
+                  <p>Walkthrough skills</p>
+                  <h2>How to clear the game smarter</h2>
+                </div>
+                <ul className="clean-list">
+                  {(report.contentBrief.walkthroughSkills || []).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </article>
             </section>
           ) : null}
 
@@ -1189,9 +1232,15 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 <div className="review-snapshot">
                   <strong>No recent Steam review text returned</strong>
                   <p>Steam may have limited review text for this request. Open the Steam review page for the latest player comments.</p>
-                  <a className="source-link" href={`${report.game.steamUrl}/#app_reviews_hash`} target="_blank" rel="noreferrer">
-                    Open Steam reviews
-                  </a>
+                  {reportLocked ? (
+                    <button type="button" className="source-link locked-link" onClick={() => requestPaidDetail("Steam review links")}>
+                      Open Steam reviews
+                    </button>
+                  ) : (
+                    <a className="source-link" href={`${report.game.steamUrl}/#app_reviews_hash`} target="_blank" rel="noreferrer">
+                      Open Steam reviews
+                    </a>
+                  )}
                 </div>
               )}
             </article>
@@ -1202,20 +1251,34 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 <h2>Reddit threads</h2>
               </div>
               {report.reddit.posts.length ? (
-                report.reddit.posts.map((post) => (
-                  <a key={post.url} className="reddit-item" href={post.url} target="_blank" rel="noreferrer">
-                    <span>r/{post.subreddit}</span>
-                    <strong>{post.title}</strong>
-                    <small>{post.comments.toLocaleString("en-US")} comments</small>
-                  </a>
-                ))
+                report.reddit.posts.map((post) =>
+                  reportLocked ? (
+                    <button key={post.url} type="button" className="reddit-item locked-link" onClick={() => requestPaidDetail("Reddit thread links")}>
+                      <span>r/{post.subreddit}</span>
+                      <strong>{post.title}</strong>
+                      <small>{post.comments.toLocaleString("en-US")} comments · Subscribe to open</small>
+                    </button>
+                  ) : (
+                    <a key={post.url} className="reddit-item" href={post.url} target="_blank" rel="noreferrer">
+                      <span>r/{post.subreddit}</span>
+                      <strong>{post.title}</strong>
+                      <small>{post.comments.toLocaleString("en-US")} comments</small>
+                    </a>
+                  ),
+                )
               ) : (
                 <div className="review-snapshot">
                   <strong>Reddit API limited</strong>
                   <p>{report.reddit.error || "No Reddit posts returned."}</p>
-                  <a className="source-link" href={report.reddit.searchUrl} target="_blank" rel="noreferrer">
-                    Search Reddit manually
-                  </a>
+                  {reportLocked ? (
+                    <button type="button" className="source-link locked-link" onClick={() => requestPaidDetail("Reddit search links")}>
+                      Search Reddit manually
+                    </button>
+                  ) : (
+                    <a className="source-link" href={report.reddit.searchUrl} target="_blank" rel="noreferrer">
+                      Search Reddit manually
+                    </a>
+                  )}
                 </div>
               )}
             </article>

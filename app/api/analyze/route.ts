@@ -25,6 +25,7 @@ function previewReport(report: Report): Report {
       characters: report.contentBrief.characters.slice(0, 1),
       scenes: report.contentBrief.scenes.slice(0, 1),
       tips: report.contentBrief.tips.slice(0, 1),
+      walkthroughSkills: ["Paid access unlocks the full walkthrough skill plan built from Steam, Reddit, and public review signals."],
       buyerAnalysis: `${report.verdict.label}: limited public preview. Paid access unlocks the complete buyer analysis, platform feedback, review samples, characters, scenes, and game tips.`,
     },
     limitations: ["Limited public preview. Full report unlocks after registration and payment."],

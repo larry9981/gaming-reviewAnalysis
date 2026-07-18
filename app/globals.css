@@ -111,6 +111,32 @@ button {
   color: #e9fff0;
 }
 
+.account-nav {
+  gap: 8px;
+  max-width: 230px;
+}
+
+.account-nav > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-avatar {
+  align-items: center;
+  background: linear-gradient(135deg, var(--green), var(--blue));
+  border-radius: 50%;
+  color: #071017;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 950;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
 .home-page,
 .pricing-page {
   display: grid;
@@ -997,9 +1023,25 @@ h1 {
 }
 
 .source-link {
+  background: transparent;
+  border: 0;
   color: #a7d5ff;
+  cursor: pointer;
   font-weight: 800;
+  padding: 0;
   text-decoration: none;
+}
+
+.locked-link {
+  border-color: rgba(245, 196, 78, 0.38);
+  color: #f5d77d;
+}
+
+.source-link.locked-link {
+  border: 1px solid rgba(245, 196, 78, 0.34);
+  border-radius: 7px;
+  display: inline-flex;
+  padding: 9px 11px;
 }
 
 .hero-metrics div,
@@ -1705,11 +1747,14 @@ button:hover {
   border: 1px solid #263649;
   border-radius: 8px;
   color: var(--foreground);
+  cursor: pointer;
   display: grid;
   gap: 6px;
   margin-top: 12px;
   padding: 13px;
+  text-align: left;
   text-decoration: none;
+  width: 100%;
 }
 
 .reddit-item:hover {
