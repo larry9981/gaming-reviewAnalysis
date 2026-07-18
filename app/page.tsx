@@ -157,6 +157,12 @@ function gameInitial(name?: string) {
   return (name || "Game").trim().slice(0, 1).toUpperCase();
 }
 
+function scrollToReport() {
+  window.setTimeout(() => {
+    document.querySelector(".game-summary")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 120);
+}
+
 function GameImage({
   image,
   name,
@@ -351,7 +357,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     const appId = params.get("app");
     if (appId) {
       setInput(appId);
-      openReport(appId);
+      openReport(appId, true);
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
@@ -471,7 +477,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     await loadMe();
   }
 
-  async function openReport(appId = input || selected?.appId || "") {
+  async function openReport(appId = input || selected?.appId || "", scrollAfterLoad = false) {
     const clean = appId.trim();
     if (!clean) return;
     setMessage("");
@@ -491,6 +497,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
         if (data.preview) {
           setReport(data.preview);
           setReportLocked(true);
+          if (scrollAfterLoad) scrollToReport();
         }
         setMessage(
           user
@@ -506,6 +513,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       setReport(data);
       setReportLocked(false);
       setMessage("Full report unlocked.");
+      if (scrollAfterLoad) scrollToReport();
     } catch {
       setMessage("Report failed. Please try again.");
     } finally {
@@ -516,17 +524,23 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   function selectGame(game: TopGame) {
     setSelected(game);
     setInput(game.appId);
-    openReport(game.appId);
+    openReport(game.appId, true);
   }
 
   function openPaidPlatform() {
-    setMessage("Click View plans to unlock detailed platform feedback sources.");
-    setPaywall((current) => current || (report ? { appId: report.appId, plans: [] } : null));
+    if (!report) return;
+    const nextPaywall = paywall || { appId: report.appId, plans: [] };
+    setMessage(user ? "Choose a paid plan to unlock detailed platform feedback sources." : "Please log in or register, then choose a paid plan to open detailed platform feedback.");
+    setPaywall(nextPaywall);
+    setPlansDialog(nextPaywall);
   }
 
   function requestPaidDetail(detail = "detailed source links") {
-    setMessage(user ? `Click View plans to unlock ${detail}.` : `Click View plans, then register or log in to unlock ${detail}.`);
-    setPaywall((current) => current || (report ? { appId: report.appId, plans: [] } : null));
+    if (!report) return;
+    const nextPaywall = paywall || { appId: report.appId, plans: [] };
+    setMessage(user ? `Choose a paid plan to unlock ${detail}.` : `Please log in or register, then choose a paid plan to unlock ${detail}.`);
+    setPaywall(nextPaywall);
+    setPlansDialog(nextPaywall);
   }
 
   function showPlansForReport() {
@@ -872,7 +886,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 onChange={(event) => setInput(event.target.value)}
                 placeholder="https://store.steampowered.com/app/..."
               />
-              <button type="button" onClick={() => openReport()}>
+              <button type="button" onClick={() => openReport(input || selected?.appId || "", true)}>
                 Check before buying
               </button>
             </div>
@@ -908,11 +922,9 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           {gamesError ? <div className="error-box">{gamesError}</div> : null}
           <div className="game-list">
             {visibleGames.map((game, index) => (
-              <button
+              <article
                 key={game.appId}
-                type="button"
                 className={`game-row ${selected?.appId === game.appId ? "selected" : ""}`}
-                onClick={() => selectGame(game)}
               >
                 <span className="rank-badge">{index + 1}</span>
                 <GameImage image={game.image} name={game.name} className="game-thumb" />
@@ -922,7 +934,10 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                 </div>
                 <small>{game.reviewSummary}</small>
                 <em className={game.tone}>{game.verdict}</em>
-              </button>
+                <button type="button" className="row-analysis-button" onClick={() => selectGame(game)} disabled={reportBusy}>
+                  Analysis
+                </button>
+              </article>
             ))}
           </div>
           {hiddenGames.length ? (
@@ -930,11 +945,9 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               <summary>Show ranks 11-30</summary>
               <div className="game-list scroll-window">
                 {hiddenGames.map((game, index) => (
-                  <button
+                  <article
                     key={game.appId}
-                    type="button"
                     className={`game-row compact ${selected?.appId === game.appId ? "selected" : ""}`}
-                    onClick={() => selectGame(game)}
                   >
                     <span className="rank-badge">{index + 11}</span>
                     <GameImage image={game.image} name={game.name} className="game-thumb" />
@@ -944,7 +957,10 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                     </div>
                     <small>{game.reviewSummary}</small>
                     <em className={game.tone}>{game.verdict}</em>
-                  </button>
+                    <button type="button" className="row-analysis-button" onClick={() => selectGame(game)} disabled={reportBusy}>
+                      Analysis
+                    </button>
+                  </article>
                 ))}
               </div>
             </details>
