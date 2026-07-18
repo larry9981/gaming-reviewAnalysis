@@ -1845,7 +1845,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           <a href="/">Home</a>
           <a href="/reviews">Review Analysis</a>
           <a href="/pricing">Pricing</a>
-          <a href="/account">Register / Login</a>
+          <a href="/admin">Admin Login</a>
         </nav>
         <nav className="footer-column" aria-label="Company navigation">
           <strong>Company</strong>
