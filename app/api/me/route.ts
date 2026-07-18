@@ -1,4 +1,4 @@
-import { getCurrentUser, getD1, json } from "../../lib/data";
+import { getCurrentUser, getD1, isAdmin, json } from "../../lib/data";
 
 export async function GET(request: Request) {
   const user = await getCurrentUser(request);
@@ -7,5 +7,5 @@ export async function GET(request: Request) {
     .prepare("SELECT kind, app_id as appId, status, current_period_end as currentPeriodEnd, created_at as createdAt FROM entitlements WHERE user_id = ? ORDER BY created_at DESC")
     .bind(user.id)
     .all();
-  return json({ user, entitlements: entitlements.results || [] });
+  return json({ user: { ...user, isAdmin: isAdmin(user) }, entitlements: entitlements.results || [] });
 }

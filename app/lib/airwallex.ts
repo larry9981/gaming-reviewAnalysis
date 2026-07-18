@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { planConfig, type CheckoutPlan } from "./payments";
+import { getAirwallexSettings } from "./payment-settings";
 
 type AirwallexToken = {
   token?: string;
@@ -23,32 +24,33 @@ export type AirwallexIntent = {
   code?: string;
 };
 
-function airwallexBaseUrl() {
-  return env.AIRWALLEX_ENV === "demo" || env.AIRWALLEX_ENV === "sandbox"
+function isDemoEnv(airwallexEnv?: string) {
+  return airwallexEnv === "demo" || airwallexEnv === "sandbox";
+}
+
+function airwallexBaseUrl(airwallexEnv?: string) {
+  return isDemoEnv(airwallexEnv)
     ? "https://api-demo.airwallex.com"
     : "https://api.airwallex.com";
 }
 
-function airwallexSdkEnv() {
-  return env.AIRWALLEX_ENV === "demo" || env.AIRWALLEX_ENV === "sandbox" ? "demo" : "prod";
-}
-
-function airwallexCountryCode() {
-  return env.AIRWALLEX_COUNTRY_CODE || "US";
+function airwallexSdkEnv(airwallexEnv?: string) {
+  return isDemoEnv(airwallexEnv) ? "demo" : "prod";
 }
 
 async function airwallexAccessToken() {
-  if (!env.AIRWALLEX_CLIENT_ID || !env.AIRWALLEX_API_KEY) {
+  const settings = await getAirwallexSettings();
+  if (!settings.clientId || !settings.apiKey) {
     throw new Error("Airwallex is not configured. Add AIRWALLEX_CLIENT_ID and AIRWALLEX_API_KEY.");
   }
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "x-client-id": env.AIRWALLEX_CLIENT_ID,
-    "x-api-key": env.AIRWALLEX_API_KEY,
+    "x-client-id": settings.clientId,
+    "x-api-key": settings.apiKey,
   };
-  if (env.AIRWALLEX_ACCOUNT_ID) headers["x-login-as"] = env.AIRWALLEX_ACCOUNT_ID;
+  if (settings.accountId) headers["x-login-as"] = settings.accountId;
 
-  const response = await fetch(`${airwallexBaseUrl()}/api/v1/authentication/login`, {
+  const response = await fetch(`${airwallexBaseUrl(settings.env)}/api/v1/authentication/login`, {
     method: "POST",
     headers,
   });
@@ -56,7 +58,7 @@ async function airwallexAccessToken() {
   if (!response.ok || !data.token) {
     throw new Error(data.message || data.code || "Could not authenticate with Airwallex.");
   }
-  return data.token;
+  return { accessToken: data.token, settings };
 }
 
 export async function createAirwallexPaymentIntent({
@@ -72,12 +74,12 @@ export async function createAirwallexPaymentIntent({
   email: string;
   origin: string;
 }) {
-  const accessToken = await airwallexAccessToken();
+  const { accessToken, settings } = await airwallexAccessToken();
   const config = planConfig(plan, appId);
-  const currency = env.AIRWALLEX_CURRENCY || "USD";
+  const currency = settings.currency || env.AIRWALLEX_CURRENCY || "USD";
   const requestId = crypto.randomUUID();
   const merchantOrderId = `sg-${requestId}`;
-  const response = await fetch(`${airwallexBaseUrl()}/api/v1/pa/payment_intents/create`, {
+  const response = await fetch(`${airwallexBaseUrl(settings.env)}/api/v1/pa/payment_intents/create`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -112,16 +114,16 @@ export async function createAirwallexPaymentIntent({
     id: data.id,
     clientSecret: data.client_secret,
     currency,
-    countryCode: airwallexCountryCode(),
-    env: airwallexSdkEnv(),
+    countryCode: settings.countryCode || "US",
+    env: airwallexSdkEnv(settings.env),
     successUrl: `${origin}/?airwallex=success&intent_id=${encodeURIComponent(data.id)}`,
     cancelUrl: `${origin}/?airwallex=cancelled`,
   };
 }
 
 export async function getAirwallexPaymentIntent(intentId: string) {
-  const accessToken = await airwallexAccessToken();
-  const response = await fetch(`${airwallexBaseUrl()}/api/v1/pa/payment_intents/${encodeURIComponent(intentId)}`, {
+  const { accessToken, settings } = await airwallexAccessToken();
+  const response = await fetch(`${airwallexBaseUrl(settings.env)}/api/v1/pa/payment_intents/${encodeURIComponent(intentId)}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },

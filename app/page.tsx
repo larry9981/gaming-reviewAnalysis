@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, FormEvent } from "react";
 
 type User = {
   id: string;
   email: string;
   username?: string | null;
   role: string;
+  isAdmin?: boolean;
 };
 
 type Entitlement = {
@@ -122,6 +123,28 @@ type CheckoutDialog = {
   provider: CheckoutProvider;
 };
 
+type MaskedSecret = {
+  configured: boolean;
+  preview: string;
+};
+
+type AdminPaymentSettings = {
+  paypal: {
+    env: string;
+    clientId: MaskedSecret;
+    clientSecret: MaskedSecret;
+    monthlyPlanId: MaskedSecret;
+  };
+  airwallex: {
+    env: string;
+    clientId: MaskedSecret;
+    apiKey: MaskedSecret;
+    accountId: MaskedSecret;
+    countryCode: string;
+    currency: string;
+  };
+};
+
 function formatNumber(value?: number | null) {
   return typeof value === "number" ? value.toLocaleString("en-US") : "Unknown";
 }
@@ -155,7 +178,7 @@ function GameImage({
   );
 }
 
-type SitePage = "home" | "reviews" | "pricing" | "account";
+type SitePage = "home" | "reviews" | "pricing" | "account" | "admin";
 
 const heroSlides = [
   {
@@ -203,6 +226,8 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const [resetToken, setResetToken] = useState("");
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [activeBanner, setActiveBanner] = useState(0);
+  const [paymentSettings, setPaymentSettings] = useState<AdminPaymentSettings | null>(null);
+  const [paymentSettingsBusy, setPaymentSettingsBusy] = useState(false);
   const [admin, setAdmin] = useState<{
     users: number;
     activeEntitlements: number;
@@ -219,6 +244,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const showReviews = page === "reviews";
   const showPricing = page === "pricing";
   const showAccount = page === "account";
+  const showAdmin = page === "admin";
 
   async function loadMe() {
     const response = await fetch("/api/me");
@@ -329,6 +355,12 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   }, []);
 
   useEffect(() => {
+    if (!showAdmin || !user?.isAdmin) return;
+    loadAdmin();
+    loadPaymentSettings();
+  }, [showAdmin, user?.isAdmin]);
+
+  useEffect(() => {
     if (heroSlides.length < 2) return;
     const timer = window.setInterval(() => {
       setActiveBanner((current) => (current + 1) % heroSlides.length);
@@ -387,6 +419,31 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       }
     } catch {
       setMessage("Authentication failed. Please check your connection and try again.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function adminLogin() {
+    setMessage("");
+    setAuthBusy(true);
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json().catch(() => ({ error: "Admin login failed. Please try again." }));
+      if (!response.ok) {
+        setMessage(data.error || "Admin login failed.");
+        return;
+      }
+      setUser(data.user);
+      setPassword("");
+      await loadMe();
+      setMessage("Admin signed in.");
+    } catch {
+      setMessage("Admin login failed. Please check your connection and try again.");
     } finally {
       setAuthBusy(false);
     }
@@ -582,6 +639,54 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     setAdmin(data);
   }
 
+  async function loadPaymentSettings() {
+    const response = await fetch("/api/admin/payment-settings");
+    const data = await response.json().catch(() => ({ error: "Payment settings unavailable." }));
+    if (!response.ok) {
+      setMessage(data.error || "Payment settings unavailable.");
+      return;
+    }
+    setPaymentSettings(data);
+  }
+
+  async function savePaymentSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPaymentSettingsBusy(true);
+    setMessage("");
+    const form = new FormData(event.currentTarget);
+    try {
+      const response = await fetch("/api/admin/payment-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paypal: {
+            env: form.get("paypalEnv"),
+            clientId: form.get("paypalClientId"),
+            clientSecret: form.get("paypalClientSecret"),
+            monthlyPlanId: form.get("paypalMonthlyPlanId"),
+          },
+          airwallex: {
+            env: form.get("airwallexEnv"),
+            clientId: form.get("airwallexClientId"),
+            apiKey: form.get("airwallexApiKey"),
+            accountId: form.get("airwallexAccountId"),
+            countryCode: form.get("airwallexCountryCode"),
+            currency: form.get("airwallexCurrency"),
+          },
+        }),
+      });
+      const data = await response.json().catch(() => ({ error: "Payment settings could not be saved." }));
+      if (!response.ok) {
+        setMessage(data.error || "Payment settings could not be saved.");
+        return;
+      }
+      setPaymentSettings(data.settings);
+      setMessage(data.message || "Payment settings saved.");
+    } finally {
+      setPaymentSettingsBusy(false);
+    }
+  }
+
   function subscribeNewsletter() {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newsletterEmail.trim())) {
       setMessage("Enter a valid email to receive Steam Guardrail updates.");
@@ -613,6 +718,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               "Register / Login"
             )}
           </a>
+          {user?.isAdmin ? <a className={showAdmin ? "active" : ""} href="/admin">Admin</a> : <a className={showAdmin ? "active" : ""} href="/admin">Admin Login</a>}
         </nav>
       </header>
 
@@ -668,14 +774,15 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           <div className="top-five-feature-list">
             {topFiveGames.map((game, index) => (
               <article key={game.appId} className="top-five-feature">
-                <a href={`/reviews?app=${game.appId}`}>
-                  <GameImage image={game.image} name={game.name} className="game-cover" />
-                  <div>
-                    <span>#{index + 1} Trending</span>
-                    <strong>{game.name}</strong>
-                    <p>{game.reviewSummary}</p>
-                    <small>{game.verdict} · Risk {game.riskScore}/100 · {game.price}</small>
-                  </div>
+                <GameImage image={game.image} name={game.name} className="game-cover" />
+                <div>
+                  <span>#{index + 1} Trending</span>
+                  <strong>{game.name}</strong>
+                  <p>{game.reviewSummary}</p>
+                  <small>{game.verdict} · Risk {game.riskScore}/100 · {game.price}</small>
+                </div>
+                <a className="link-button primary-action analysis-button" href={`/reviews?app=${game.appId}`}>
+                  Analysis
                 </a>
               </article>
             ))}
@@ -937,11 +1044,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               <button type="button" onClick={logout}>
                 Sign out
               </button>
-              {user.role === "admin" ? (
-                <button type="button" onClick={loadAdmin}>
-                  Load admin dashboard
-                </button>
-              ) : null}
+              {user.isAdmin ? <a className="link-button secondary-action" href="/admin">Open admin dashboard</a> : null}
             </>
           ) : (
             <>
@@ -988,7 +1091,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
         </aside>
       </section>
 
-      {admin ? (
+      {showAccount && admin ? (
         <section className="admin-panel">
           <div className="admin-strip">
             <div>
@@ -1036,6 +1139,173 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
         </section>
       ) : null}
       </>
+      ) : null}
+
+      {showAdmin ? (
+        <>
+          <section className="hero-band admin-login-page">
+            <div className="hero-copy">
+              <p className="eyebrow">Admin console</p>
+              <h1>Manage users, paid access, and payment settings.</h1>
+              <p className="subcopy">
+                This page is the separate administrator entrance for Steam Guardrail. Only approved admin accounts can
+                view purchase records, export users, or edit PayPal and credit card payment configuration.
+              </p>
+              {message ? <div className="error-box neutral">{message}</div> : null}
+            </div>
+            <aside className="auth-panel">
+              {user?.isAdmin ? (
+                <>
+                  <p className="eyebrow">Signed in as admin</p>
+                  <strong>{user.username || user.email}</strong>
+                  <span>{user.email}</span>
+                  <button type="button" onClick={loadAdmin}>Refresh users</button>
+                  <button type="button" onClick={loadPaymentSettings}>Refresh payment settings</button>
+                  <button type="button" onClick={logout}>Sign out</button>
+                </>
+              ) : user ? (
+                <>
+                  <p className="eyebrow">Access denied</p>
+                  <strong>{user.username || user.email}</strong>
+                  <span>This account is signed in, but it is not configured as an administrator.</span>
+                  <button type="button" onClick={logout}>Sign out and use admin account</button>
+                </>
+              ) : (
+                <>
+                  <p className="eyebrow">Admin login</p>
+                  <span className="auth-pitch">Use the administrator email configured for this site to enter the dashboard.</span>
+                  <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@example.com" />
+                  <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Admin password" type="password" />
+                  <button type="button" onClick={adminLogin} disabled={authBusy}>
+                    {authBusy ? "Signing in..." : "Admin login"}
+                  </button>
+                  <button type="button" className="text-button" onClick={() => setAuthMode("forgot")}>
+                    Forgot password
+                  </button>
+                </>
+              )}
+            </aside>
+          </section>
+
+          {user?.isAdmin ? (
+            <section className="admin-panel">
+              <div className="admin-strip">
+                <div>
+                  <span>Registered users</span>
+                  <strong>{admin?.users ?? "--"}</strong>
+                </div>
+                <div>
+                  <span>Active paid entitlements</span>
+                  <strong>{admin?.activeEntitlements ?? "--"}</strong>
+                </div>
+                <a className="export-link" href="/api/admin/export" target="_blank" rel="noreferrer">
+                  Export user CSV
+                </a>
+              </div>
+
+              <div className="admin-tables">
+                <article>
+                  <div className="panel-heading">
+                    <p>Admin</p>
+                    <h2>All registered users</h2>
+                  </div>
+                  <div className="table-list">
+                    {(admin?.userRows || []).map((row) => (
+                      <div key={row.id}>
+                        <span>{row.username || "No username"} · {row.email}</span>
+                        <strong>{row.entitlementCount} active</strong>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+                <article>
+                  <div className="panel-heading">
+                    <p>Admin</p>
+                    <h2>All purchase records</h2>
+                  </div>
+                  <div className="table-list">
+                    {(admin?.entitlementRows || []).map((row) => (
+                      <div key={row.id}>
+                        <span>{row.email} · {row.kind}{row.appId ? ` · App ${row.appId}` : ""} · {row.provider}</span>
+                        <strong>{row.status}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              </div>
+
+              <form className="payment-config-panel" onSubmit={savePaymentSettings} key={JSON.stringify(paymentSettings || {})}>
+                <div className="panel-heading">
+                  <p>Payment configuration</p>
+                  <h2>PayPal and credit card settings</h2>
+                </div>
+                <p className="admin-note">
+                  Existing secrets are masked. Leave a secret field blank to keep the current value, or enter a new value to replace it.
+                </p>
+                <div className="payment-config-grid">
+                  <article>
+                    <h3>PayPal</h3>
+                    <label>
+                      Environment
+                      <select name="paypalEnv" defaultValue={paymentSettings?.paypal.env || "live"}>
+                        <option value="live">live</option>
+                        <option value="sandbox">sandbox</option>
+                      </select>
+                    </label>
+                    <label>
+                      Client ID
+                      <input name="paypalClientId" placeholder={paymentSettings?.paypal.clientId.preview || "PayPal client ID"} />
+                    </label>
+                    <label>
+                      Client Secret
+                      <input name="paypalClientSecret" type="password" placeholder={paymentSettings?.paypal.clientSecret.configured ? "********" : "PayPal client secret"} />
+                    </label>
+                    <label>
+                      Monthly Plan ID
+                      <input name="paypalMonthlyPlanId" placeholder={paymentSettings?.paypal.monthlyPlanId.preview || "PayPal subscription plan ID"} />
+                    </label>
+                  </article>
+                  <article>
+                    <h3>Credit card / Airwallex</h3>
+                    <label>
+                      Environment
+                      <select name="airwallexEnv" defaultValue={paymentSettings?.airwallex.env || "prod"}>
+                        <option value="prod">prod</option>
+                        <option value="demo">demo</option>
+                        <option value="sandbox">sandbox</option>
+                      </select>
+                    </label>
+                    <label>
+                      Client ID
+                      <input name="airwallexClientId" placeholder={paymentSettings?.airwallex.clientId.preview || "Airwallex client ID"} />
+                    </label>
+                    <label>
+                      API Key
+                      <input name="airwallexApiKey" type="password" placeholder={paymentSettings?.airwallex.apiKey.configured ? "********" : "Airwallex API key"} />
+                    </label>
+                    <label>
+                      Account ID
+                      <input name="airwallexAccountId" placeholder={paymentSettings?.airwallex.accountId.preview || "Optional account ID"} />
+                    </label>
+                    <div className="config-pair">
+                      <label>
+                        Country
+                        <input name="airwallexCountryCode" defaultValue={paymentSettings?.airwallex.countryCode || "US"} />
+                      </label>
+                      <label>
+                        Currency
+                        <input name="airwallexCurrency" defaultValue={paymentSettings?.airwallex.currency || "USD"} />
+                      </label>
+                    </div>
+                  </article>
+                </div>
+                <button type="submit" className="primary-action" disabled={paymentSettingsBusy}>
+                  {paymentSettingsBusy ? "Saving settings..." : "Save payment settings"}
+                </button>
+              </form>
+            </section>
+          ) : null}
+        </>
       ) : null}
 
       {showPricing ? (
@@ -1221,7 +1491,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                         <span style={{ width: `${score}%` }} />
                       </div>
                       <em>{score}</em>
-                      <span className="detail-pill">Check detail</span>
+                      <span className="detail-pill">Check Detail</span>
                     </a>
                   );
                 })}
@@ -1507,6 +1777,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           <a href="/reviews">Review Analysis</a>
           <a href="/pricing">Pricing</a>
           <a href="/account">Register / Login</a>
+          <a href="/admin">Admin Login</a>
         </nav>
         <nav className="footer-column" aria-label="Company navigation">
           <strong>Company</strong>

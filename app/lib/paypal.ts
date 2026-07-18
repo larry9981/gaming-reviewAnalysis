@@ -1,17 +1,18 @@
-import { env } from "cloudflare:workers";
+import { getPayPalSettings } from "./payment-settings";
 
 export type PayPalPlan = "single" | "monthly";
 
-function paypalBaseUrl() {
-  return env.PAYPAL_ENV === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
+function paypalBaseUrl(paypalEnv?: string) {
+  return paypalEnv === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
 }
 
 async function paypalAccessToken() {
-  if (!env.PAYPAL_CLIENT_ID || !env.PAYPAL_CLIENT_SECRET) {
+  const settings = await getPayPalSettings();
+  if (!settings.clientId || !settings.clientSecret) {
     throw new Error("PayPal is not configured. Add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET.");
   }
-  const credentials = btoa(`${env.PAYPAL_CLIENT_ID}:${env.PAYPAL_CLIENT_SECRET}`);
-  const response = await fetch(`${paypalBaseUrl()}/v1/oauth2/token`, {
+  const credentials = btoa(`${settings.clientId}:${settings.clientSecret}`);
+  const response = await fetch(`${paypalBaseUrl(settings.env)}/v1/oauth2/token`, {
     method: "POST",
     headers: {
       Authorization: `Basic ${credentials}`,
@@ -27,7 +28,7 @@ async function paypalAccessToken() {
         : data.error_description || "Could not authenticate with PayPal.";
     throw new Error(message);
   }
-  return data.access_token;
+  return { accessToken: data.access_token, settings };
 }
 
 function approveLink(links?: { href?: string; rel?: string }[]) {
@@ -45,10 +46,10 @@ export async function createPayPalCheckout({
   userId: string;
   origin: string;
 }) {
-  const accessToken = await paypalAccessToken();
+  const { accessToken, settings } = await paypalAccessToken();
 
   if (plan === "single") {
-    const response = await fetch(`${paypalBaseUrl()}/v2/checkout/orders`, {
+    const response = await fetch(`${paypalBaseUrl(settings.env)}/v2/checkout/orders`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -82,17 +83,17 @@ export async function createPayPalCheckout({
     return { id: data.id, url };
   }
 
-  if (!env.PAYPAL_MONTHLY_PLAN_ID) {
+  if (!settings.monthlyPlanId) {
     throw new Error("PayPal monthly subscription requires PAYPAL_MONTHLY_PLAN_ID.");
   }
-  const response = await fetch(`${paypalBaseUrl()}/v1/billing/subscriptions`, {
+  const response = await fetch(`${paypalBaseUrl(settings.env)}/v1/billing/subscriptions`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      plan_id: env.PAYPAL_MONTHLY_PLAN_ID,
+      plan_id: settings.monthlyPlanId,
       custom_id: JSON.stringify({ userId, plan, appId }),
       application_context: {
         brand_name: "Steam Guardrail",
@@ -109,8 +110,8 @@ export async function createPayPalCheckout({
 }
 
 export async function capturePayPalOrder(orderId: string) {
-  const accessToken = await paypalAccessToken();
-  const response = await fetch(`${paypalBaseUrl()}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
+  const { accessToken, settings } = await paypalAccessToken();
+  const response = await fetch(`${paypalBaseUrl(settings.env)}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -128,8 +129,8 @@ export async function capturePayPalOrder(orderId: string) {
 }
 
 export async function getPayPalSubscription(subscriptionId: string) {
-  const accessToken = await paypalAccessToken();
-  const response = await fetch(`${paypalBaseUrl()}/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+  const { accessToken, settings } = await paypalAccessToken();
+  const response = await fetch(`${paypalBaseUrl(settings.env)}/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },

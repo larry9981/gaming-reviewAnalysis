@@ -391,7 +391,7 @@ button {
   margin-top: 18px;
 }
 
-.top-five-feature a {
+.top-five-feature {
   align-items: center;
   background: #0d141e;
   border: 1px solid #263649;
@@ -399,14 +399,14 @@ button {
   color: var(--foreground);
   display: grid;
   gap: 16px;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 220px minmax(0, 1fr) auto;
   min-height: 136px;
   overflow: hidden;
   padding: 12px;
   text-decoration: none;
 }
 
-.top-five-feature a:hover {
+.top-five-feature:hover {
   border-color: rgba(94, 225, 139, 0.62);
 }
 
@@ -483,6 +483,10 @@ button {
 .top-five-feature p {
   color: #c3d0dc;
   line-height: 1.45;
+}
+
+.analysis-button {
+  min-width: 118px;
 }
 
 .top-five-card button {
@@ -1419,6 +1423,65 @@ button:hover {
   white-space: nowrap;
 }
 
+.payment-config-panel {
+  background: rgba(18, 22, 30, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.admin-note {
+  color: #b8c8d6;
+  line-height: 1.55;
+}
+
+.payment-config-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.payment-config-grid article {
+  background: #0d141e;
+  border: 1px solid #263649;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.payment-config-grid h3 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.payment-config-grid label {
+  color: #d9e8f5;
+  display: grid;
+  font-size: 12px;
+  font-weight: 900;
+  gap: 7px;
+}
+
+.payment-config-grid input,
+.payment-config-grid select {
+  background: #090f17;
+  border: 1px solid #33445a;
+  border-radius: 7px;
+  color: var(--foreground);
+  min-height: 42px;
+  min-width: 0;
+  padding: 10px 11px;
+}
+
+.config-pair {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
 .game-list {
   display: grid;
   gap: 9px;
@@ -2240,6 +2303,7 @@ input[type="range"] {
   }
 
   .admin-tables,
+  .payment-config-grid,
   .locked-strip {
     grid-template-columns: 1fr;
   }
@@ -2256,8 +2320,13 @@ input[type="range"] {
     grid-template-columns: 1fr;
   }
 
-  .top-five-feature a {
+  .top-five-feature {
     grid-template-columns: 180px minmax(0, 1fr);
+  }
+
+  .analysis-button {
+    grid-column: 2;
+    justify-self: start;
   }
 
   .banner-carousel {
@@ -2405,9 +2474,14 @@ input[type="range"] {
     padding-right: 18px;
   }
 
-  .top-five-feature a {
+  .top-five-feature {
     align-items: start;
     grid-template-columns: 1fr;
+  }
+
+  .analysis-button {
+    grid-column: auto;
+    width: 100%;
   }
 
   .game-cover {
@@ -2437,8 +2511,9 @@ input[type="range"] {
 
   .game-row {
     align-items: start;
+    gap: 8px;
     grid-template-columns: 38px minmax(0, 1fr);
-    padding: 10px;
+    padding: 12px;
   }
 
   .game-row.compact {
@@ -2446,7 +2521,9 @@ input[type="range"] {
   }
 
   .game-thumb {
-    display: none;
+    grid-column: 2;
+    height: 84px;
+    width: 100%;
   }
 
   .rank-badge {
@@ -2459,6 +2536,16 @@ input[type="range"] {
   .game-row em {
     grid-column: 2;
     min-width: 0;
+  }
+
+  .game-row strong {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .game-row small {
+    line-height: 1.4;
   }
 
   .game-row em {
@@ -2490,6 +2577,7 @@ input[type="range"] {
   }
 
   .card-entry-form,
+  .config-pair,
   .modal-summary {
     grid-template-columns: 1fr;
   }
@@ -2514,16 +2602,32 @@ input[type="range"] {
     font-size: 15px;
   }
 
+  .site-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .site-nav a {
+    font-size: 12px;
+  }
+
   .banner-carousel {
     min-height: 420px;
   }
 
   .banner-copy strong {
-    font-size: 31px;
+    font-size: 30px;
   }
 
   .price-card h2 {
     font-size: 30px;
+  }
+
+  .game-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .game-thumb {
+    height: 78px;
   }
 
   .legend-row {

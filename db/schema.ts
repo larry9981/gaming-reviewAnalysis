@@ -46,3 +46,10 @@ export const gameReports = sqliteTable("game_reports", {
   payload: text("payload").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+
+export const paymentSettings = sqliteTable("payment_settings", {
+  provider: text("provider").primaryKey(),
+  payload: text("payload").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+  updatedBy: text("updated_by"),
+});
