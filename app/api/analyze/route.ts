@@ -1,5 +1,6 @@
 import { getCurrentUser, hasReportAccess, isAdmin, json } from "../../lib/data";
 import { analyzeSteamApp, extractAppId } from "../../lib/steam";
+import { centsToPrice, getPricingSettings } from "../../lib/payment-settings";
 
 type Report = Awaited<ReturnType<typeof analyzeSteamApp>>;
 
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
   const allowed = user ? isAdmin(user) || (await hasReportAccess(user.id, appId)) : false;
   if (!allowed) {
     try {
-      const report = await analyzeSteamApp(appId);
+      const [report, pricing] = await Promise.all([analyzeSteamApp(appId), getPricingSettings()]);
       return json(
         {
           error: "Full report requires payment.",
@@ -52,8 +53,8 @@ export async function POST(request: Request) {
           preview: previewReport(report),
           defaultPlan: "single",
           plans: [
-            { id: "single", label: "One-month single report", price: "$29.99", appId },
-            { id: "monthly", label: "Recurring monthly access", price: "$25.99/month" },
+            { id: "single", label: "One-month single report", price: `$${centsToPrice(pricing.singleAmountCents)}`, appId },
+            { id: "monthly", label: "Recurring monthly access", price: `$${centsToPrice(pricing.monthlyAmountCents)}/month` },
           ],
         },
         402,

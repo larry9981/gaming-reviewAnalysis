@@ -123,7 +123,7 @@ export async function createWorldFirstCheckout({
   origin: string;
 }) {
   const settings = await getWorldFirstSettings();
-  const config = planConfig(plan, appId);
+  const config = await planConfig(plan, appId);
   const payToRequestId = `sg_${crypto.randomUUID().replace(/-/g, "").slice(0, 28)}`;
   const now = new Date().toISOString();
   const response = await worldFirstFetch<WorldFirstCreateResponse>("/amsin/api/v1/business/create", {

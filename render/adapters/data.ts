@@ -31,12 +31,20 @@ function getPool() {
 function normalizeSql(sql: string) {
   const upsertTrending =
     "INSERT OR REPLACE INTO trending_cache (cache_key, payload, updated_at) VALUES (?, ?, ?)";
+  const upsertPaymentSettings =
+    "INSERT OR REPLACE INTO payment_settings (provider, payload, updated_at, updated_by) VALUES (?, ?, ?, ?)";
   let normalized = sql.includes(upsertTrending)
     ? sql.replace(
         upsertTrending,
         "INSERT INTO trending_cache (cache_key, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT (cache_key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = EXCLUDED.updated_at",
       )
     : sql;
+  if (normalized.includes(upsertPaymentSettings)) {
+    normalized = normalized.replace(
+      upsertPaymentSettings,
+      "INSERT INTO payment_settings (provider, payload, updated_at, updated_by) VALUES (?, ?, ?, ?) ON CONFLICT (provider) DO UPDATE SET payload = EXCLUDED.payload, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by",
+    );
+  }
   let index = 0;
   normalized = normalized.replace(/\?/g, () => `$${++index}`);
   return normalized;
@@ -173,6 +181,12 @@ export async function ensureSchema() {
         expires_at BIGINT NOT NULL,
         used_at BIGINT,
         created_at BIGINT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS payment_settings (
+        provider TEXT PRIMARY KEY,
+        payload TEXT NOT NULL,
+        updated_at BIGINT NOT NULL,
+        updated_by TEXT
       );
       CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
       CREATE INDEX IF NOT EXISTS entitlements_user_idx ON entitlements (user_id);

@@ -6,6 +6,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const replacements = [
   ["render/adapters/data.ts", "app/lib/data.ts"],
+  ["render/adapters/payment-settings.ts", "app/lib/payment-settings.ts"],
   ["render/adapters/payments.ts", "app/lib/payments.ts"],
   ["render/adapters/paypal.ts", "app/lib/paypal.ts"],
   ["render/adapters/airwallex.ts", "app/lib/airwallex.ts"],

@@ -1547,6 +1547,10 @@ button:hover {
   padding: 16px;
 }
 
+.payment-config-grid .pricing-config-card {
+  grid-column: 1 / -1;
+}
+
 .payment-config-grid h3 {
   font-size: 20px;
   margin: 0;
@@ -1575,6 +1579,20 @@ button:hover {
   display: grid;
   gap: 10px;
   grid-template-columns: 1fr 1fr;
+}
+
+.payment-config-grid .paypal-price-sync {
+  align-items: flex-start;
+  display: flex;
+  font-weight: 700;
+  gap: 10px;
+}
+
+.payment-config-grid .paypal-price-sync input {
+  flex: 0 0 auto;
+  min-height: 0;
+  margin-top: 2px;
+  padding: 0;
 }
 
 .game-list {

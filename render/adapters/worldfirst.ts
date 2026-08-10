@@ -1,4 +1,5 @@
 import { planConfig, type CheckoutPlan } from "./payments";
+import { getWorldFirstSettings } from "./payment-settings";
 
 type WorldFirstCreateResponse = {
   result?: { resultStatus?: string; resultCode?: string; resultMessage?: string };
@@ -66,28 +67,24 @@ async function signRequest(method: string, path: string, clientId: string, reque
   return btoa(binary);
 }
 
-function worldFirstBaseUrl() {
-  if (process.env.WORLDFIRST_API_BASE_URL) return process.env.WORLDFIRST_API_BASE_URL;
-  return process.env.WORLDFIRST_ENV === "sandbox" || process.env.WORLDFIRST_ENV === "test" ? "" : "https://open-na.worldfirst.com";
-}
-
 async function worldFirstFetch<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  if (!process.env.WORLDFIRST_CLIENT_ID || !process.env.WORLDFIRST_PRIVATE_KEY) {
+  const settings = await getWorldFirstSettings();
+  if (!settings.clientId || !settings.privateKey) {
     throw new Error("WorldFirst is not configured. Add WORLDFIRST_CLIENT_ID and WORLDFIRST_PRIVATE_KEY.");
   }
-  const baseUrl = worldFirstBaseUrl();
+  const baseUrl = settings.apiBaseUrl;
   if (!baseUrl) throw new Error("WorldFirst API base URL is missing.");
   const normalizedPath = normalizePath(path);
   const payload = JSON.stringify(body);
   const requestTime = new Date().toISOString();
-  const signature = await signRequest("POST", normalizedPath, process.env.WORLDFIRST_CLIENT_ID, requestTime, payload, process.env.WORLDFIRST_PRIVATE_KEY);
+  const signature = await signRequest("POST", normalizedPath, settings.clientId, requestTime, payload, settings.privateKey);
   const response = await fetch(`${normalizeBaseUrl(baseUrl)}${normalizedPath}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json; charset=UTF-8",
-      "Client-Id": process.env.WORLDFIRST_CLIENT_ID,
+      "Client-Id": settings.clientId,
       "Request-Time": requestTime,
-      Signature: `algorithm=RSA256,keyVersion=${process.env.WORLDFIRST_KEY_VERSION || "1"},signature=${signature}`,
+      Signature: `algorithm=RSA256,keyVersion=${settings.keyVersion},signature=${signature}`,
     },
     body: payload,
   });
@@ -109,8 +106,9 @@ export async function createWorldFirstCheckout({
   email: string;
   origin: string;
 }) {
-  const config = planConfig(plan, appId);
-  const currency = process.env.WORLDFIRST_CURRENCY || "USD";
+  const settings = await getWorldFirstSettings();
+  const config = await planConfig(plan, appId);
+  const currency = settings.currency;
   const payToRequestId = `sg_${crypto.randomUUID().replace(/-/g, "").slice(0, 28)}`;
   const response = await worldFirstFetch<WorldFirstCreateResponse>("/amsin/api/v1/business/create", {
     orderGroup: {
@@ -135,7 +133,7 @@ export async function createWorldFirstCheckout({
         payToMethod: {
           paymentMethodType: "BALANCE",
           paymentMethodDataType: "PAYMENT_ACCOUNT_NO",
-          paymentMethodData: process.env.WORLDFIRST_ACCOUNT_ID || undefined,
+          paymentMethodData: settings.accountId || undefined,
         },
         paymentNotifyUrl: `${origin}/api/worldfirst/verify`,
         referenceOrderId: payToRequestId,

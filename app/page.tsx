@@ -128,6 +128,12 @@ type MaskedSecret = {
   preview: string;
 };
 
+type PublicPricing = {
+  singleAmount: string;
+  monthlyAmount: string;
+  currency: string;
+};
+
 type AdminPaymentSettings = {
   paypal: {
     env: string;
@@ -152,6 +158,7 @@ type AdminPaymentSettings = {
     accountId: MaskedSecret;
     currency: string;
   };
+  pricing: PublicPricing;
 };
 
 function formatNumber(value?: number | null) {
@@ -160,6 +167,12 @@ function formatNumber(value?: number | null) {
 
 function formatScore(value: number) {
   return Math.round(value);
+}
+
+function formatPrice(amount: string, currency: string) {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return `$${amount}`;
+  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value);
 }
 
 function gameInitial(name?: string) {
@@ -245,6 +258,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const [activeBanner, setActiveBanner] = useState(0);
   const [paymentSettings, setPaymentSettings] = useState<AdminPaymentSettings | null>(null);
   const [paymentSettingsBusy, setPaymentSettingsBusy] = useState(false);
+  const [pricing, setPricing] = useState<PublicPricing>({ singleAmount: "29.99", monthlyAmount: "25.99", currency: "USD" });
   const [admin, setAdmin] = useState<{
     users: number;
     activeEntitlements: number;
@@ -256,6 +270,8 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const rankedGames = useMemo(() => games.slice(0, 30), [games]);
   const topFiveGames = useMemo(() => games.slice(0, 5), [games]);
   const selectedCheckoutGame = paywall?.appId || highlighted?.appId || "";
+  const singlePriceLabel = formatPrice(pricing.singleAmount, pricing.currency);
+  const monthlyPriceLabel = formatPrice(pricing.monthlyAmount, pricing.currency);
   const showHome = page === "home";
   const showReviews = page === "reviews";
   const showPricing = page === "pricing";
@@ -283,6 +299,12 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     } finally {
       setLoadingGames(false);
     }
+  }
+
+  async function loadPricing() {
+    const response = await fetch("/api/pricing");
+    const data = await response.json().catch(() => null);
+    if (response.ok && data?.singleAmount && data?.monthlyAmount) setPricing(data);
   }
 
   async function verifyCheckout(sessionId: string) {
@@ -335,6 +357,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   useEffect(() => {
     loadMe();
     loadTrending();
+    loadPricing();
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get("session_id");
     if (params.get("checkout") === "success" && sessionId) {
@@ -637,6 +660,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       return;
     }
     setPaymentSettings(data);
+    if (data.pricing) setPricing(data.pricing);
   }
 
   async function savePaymentSettings(event: FormEvent<HTMLFormElement>) {
@@ -672,6 +696,11 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             accountId: form.get("worldfirstAccountId"),
             currency: form.get("worldfirstCurrency"),
           },
+          pricing: {
+            singleAmount: form.get("singleAmount"),
+            monthlyAmount: form.get("monthlyAmount"),
+            syncPaypalMonthlyPrice: form.get("syncPaypalMonthlyPrice") === "on",
+          },
         }),
       });
       const data = await response.json().catch(() => ({ error: "Payment settings could not be saved." }));
@@ -680,6 +709,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
         return;
       }
       setPaymentSettings(data.settings);
+      setPricing(data.settings.pricing);
       setMessage(data.message || "Payment settings saved.");
     } finally {
       setPaymentSettingsBusy(false);
@@ -1227,6 +1257,42 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                   Existing secrets are masked. Leave a secret field blank to keep the current value, or enter a new value to replace it.
                 </p>
                 <div className="payment-config-grid">
+                  <article className="pricing-config-card">
+                    <h3>Plan prices</h3>
+                    <div className="config-pair">
+                      <label>
+                        Single report, 30-day access (USD)
+                        <input
+                          name="singleAmount"
+                          type="number"
+                          min="0.50"
+                          max="9999"
+                          step="0.01"
+                          required
+                          defaultValue={paymentSettings?.pricing.singleAmount || "29.99"}
+                        />
+                      </label>
+                      <label>
+                        Recurring monthly subscription (USD)
+                        <input
+                          name="monthlyAmount"
+                          type="number"
+                          min="0.50"
+                          max="9999"
+                          step="0.01"
+                          required
+                          defaultValue={paymentSettings?.pricing.monthlyAmount || "25.99"}
+                        />
+                      </label>
+                    </div>
+                    <label className="paypal-price-sync">
+                      <input name="syncPaypalMonthlyPrice" type="checkbox" />
+                      <span>Synchronize the monthly price with the configured PayPal Billing Plan.</span>
+                    </label>
+                    <p className="admin-note">
+                      PayPal applies a synchronized change to new subscriptions and, under PayPal's notice and timing rules, existing subscribers.
+                    </p>
+                  </article>
                   <article>
                     <h3>PayPal</h3>
                     <label>
@@ -1292,7 +1358,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                   </article>
                 </div>
                 <button type="submit" className="primary-action" disabled={paymentSettingsBusy}>
-                  {paymentSettingsBusy ? "Saving settings..." : "Save payment settings"}
+                  {paymentSettingsBusy ? "Saving settings..." : "Save prices and payment settings"}
                 </button>
               </form>
             </section>
@@ -1314,18 +1380,18 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
         <div className="pricing-grid">
           <article className="price-card featured">
             <p className="eyebrow">Default choice</p>
-            <h2>$29.99</h2>
+            <h2>{singlePriceLabel}</h2>
             <p>One-month access to the complete report for one selected Steam game, bound to your registered account.</p>
             <button type="button" onClick={() => openCheckoutDialog("single", selectedCheckoutGame)} disabled={checkoutBusy !== null}>
-              {checkoutBusy?.startsWith("single-") ? "Opening checkout..." : "Pay $29.99"}
+              {checkoutBusy?.startsWith("single-") ? "Opening checkout..." : `Pay ${singlePriceLabel}`}
             </button>
           </article>
           <article className="price-card">
             <p className="eyebrow">Recurring monthly</p>
-            <h2>$25.99/mo</h2>
+            <h2>{monthlyPriceLabel}/mo</h2>
             <p>Continuous monthly access for Steam sales, wishlist reviews, and repeated purchase decisions.</p>
             <button type="button" onClick={() => openCheckoutDialog("monthly", selectedCheckoutGame)} disabled={checkoutBusy !== null}>
-              {checkoutBusy?.startsWith("monthly-") ? "Opening checkout..." : "Subscribe $25.99/mo"}
+              {checkoutBusy?.startsWith("monthly-") ? "Opening checkout..." : `Subscribe ${monthlyPriceLabel}/mo`}
             </button>
           </article>
         </div>
@@ -1638,18 +1704,18 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             <div className="modal-plan-grid">
               <article className="price-card featured">
                 <p className="eyebrow">Default choice</p>
-                <h2>$29.99</h2>
+                <h2>{singlePriceLabel}</h2>
                 <p>One-month access to the complete buy-or-skip report for Steam App {plansDialog.appId}.</p>
                 <button type="button" onClick={() => openCheckoutDialog("single", plansDialog.appId)} disabled={checkoutBusy !== null}>
-                  {checkoutBusy?.startsWith("single-") ? "Opening checkout..." : "Pay $29.99"}
+                  {checkoutBusy?.startsWith("single-") ? "Opening checkout..." : `Pay ${singlePriceLabel}`}
                 </button>
               </article>
               <article className="price-card">
                 <p className="eyebrow">Recurring monthly</p>
-                <h2>$25.99/mo</h2>
+                <h2>{monthlyPriceLabel}/mo</h2>
                 <p>Unlimited full reports while your subscription remains active. Good for Steam sales and wishlist checks.</p>
                 <button type="button" onClick={() => openCheckoutDialog("monthly", plansDialog.appId)} disabled={checkoutBusy !== null}>
-                  {checkoutBusy?.startsWith("monthly-") ? "Opening checkout..." : "Subscribe $25.99/mo"}
+                  {checkoutBusy?.startsWith("monthly-") ? "Opening checkout..." : `Subscribe ${monthlyPriceLabel}/mo`}
                 </button>
               </article>
             </div>
@@ -1712,7 +1778,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               <div>
                 <p className="eyebrow">Secure payment</p>
                 <h2 id="checkout-modal-title">
-                  {checkoutDialog.plan === "single" ? "Pay $29.99" : "Subscribe $25.99/mo"}
+                  {checkoutDialog.plan === "single" ? `Pay ${singlePriceLabel}` : `Subscribe ${monthlyPriceLabel}/mo`}
                 </h2>
               </div>
               <button type="button" className="modal-close" onClick={() => setCheckoutDialog(null)} disabled={checkoutBusy !== null} aria-label="Close payment dialog">

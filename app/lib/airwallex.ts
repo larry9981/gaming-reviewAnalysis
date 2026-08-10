@@ -75,7 +75,7 @@ export async function createAirwallexPaymentIntent({
   origin: string;
 }) {
   const { accessToken, settings } = await airwallexAccessToken();
-  const config = planConfig(plan, appId);
+  const config = await planConfig(plan, appId);
   const currency = settings.currency || env.AIRWALLEX_CURRENCY || "USD";
   const requestId = crypto.randomUUID();
   const merchantOrderId = `sg-${requestId}`;

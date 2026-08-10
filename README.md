@@ -2,7 +2,8 @@
 
 Steam Guardrail is a small monetization prototype for a Steam purchase risk
 scanner. It uses account-bound paid access with two plans: one-month access for
-a single selected game at $29.99, or recurring monthly access at $25.99/month.
+a single selected game, or recurring monthly access. The default prices are $29.99
+and $25.99/month, and an administrator can change both amounts from the payment settings page.
 
 The app runs on [vinext](https://github.com/cloudflare/vinext), with optional
 Cloudflare D1 and Drizzle support available if the prototype later needs
@@ -136,6 +137,9 @@ The Render app reads `DATABASE_URL` from the managed Postgres instance and creat
 WorldFirst checkout uses the official Cashier Payment redirect flow: the server signs each create/inquiry request with
 RSA256, the browser redirects to WorldFirst checkout, and the app verifies the payment before granting access. Store
 WorldFirst credentials only in deployment environment variables or the admin-only payment settings page.
+Plan prices are stored with the payment settings and are used by the public pricing UI and checkout APIs. When changing
+the recurring price for a configured PayPal Billing Plan, the administrator must explicitly confirm synchronization;
+PayPal then applies its notification and price-change timing rules to existing subscribers.
 
 ## Learn More
 

@@ -1,15 +1,17 @@
 import { env } from "cloudflare:workers";
+import { getPricingSettings } from "./payment-settings";
 
 const encoder = new TextEncoder();
 
 export type CheckoutPlan = "single" | "monthly";
 
-export function planConfig(plan: CheckoutPlan, appId?: string) {
+export async function planConfig(plan: CheckoutPlan, appId?: string) {
+  const pricing = await getPricingSettings();
   if (plan === "single") {
     return {
       mode: "payment",
       name: appId ? `Steam Guardrail full report ${appId}` : "Steam Guardrail single report",
-      amount: 2999,
+      amount: pricing.singleAmountCents,
       kind: "single",
       description: "One month access for one complete game report",
     };
@@ -17,7 +19,7 @@ export function planConfig(plan: CheckoutPlan, appId?: string) {
   return {
     mode: "subscription",
     name: "Steam Guardrail Monthly",
-    amount: 2599,
+    amount: pricing.monthlyAmountCents,
     kind: "monthly",
     description: "Unlimited full reports while subscribed",
   };
@@ -48,7 +50,7 @@ export async function createStripeCheckoutSession({
     throw new Error("Stripe is not configured. Add STRIPE_SECRET_KEY to production environment variables.");
   }
 
-  const config = planConfig(plan, appId);
+  const config = await planConfig(plan, appId);
   const params: Record<string, string | number | undefined> = {
     mode: config.mode,
     success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,

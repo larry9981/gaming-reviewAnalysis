@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { ensureSchema, getD1 } from "./data";
 
 export type PayPalSettings = {
@@ -33,12 +32,7 @@ export type PricingSettings = {
   currency?: string;
 };
 
-export type PaymentSettings = {
-  paypal: PayPalSettings;
-  airwallex: AirwallexSettings;
-  worldfirst: WorldFirstSettings;
-  pricing: PricingSettings;
-};
+type PaymentProvider = "paypal" | "airwallex" | "worldfirst" | "pricing";
 
 function parsePayload<T>(payload?: string | null): Partial<T> {
   if (!payload) return {};
@@ -48,8 +42,6 @@ function parsePayload<T>(payload?: string | null): Partial<T> {
     return {};
   }
 }
-
-type PaymentProvider = "paypal" | "airwallex" | "worldfirst" | "pricing";
 
 async function readProvider<T>(provider: PaymentProvider) {
   await ensureSchema();
@@ -63,22 +55,22 @@ async function readProvider<T>(provider: PaymentProvider) {
 export async function getPayPalSettings(): Promise<Required<Pick<PayPalSettings, "env">> & PayPalSettings> {
   const stored: Partial<PayPalSettings> = await readProvider<PayPalSettings>("paypal").catch(() => ({}));
   return {
-    env: stored.env || env.PAYPAL_ENV || "live",
-    clientId: stored.clientId || env.PAYPAL_CLIENT_ID || "",
-    clientSecret: stored.clientSecret || env.PAYPAL_CLIENT_SECRET || "",
-    monthlyPlanId: stored.monthlyPlanId || env.PAYPAL_MONTHLY_PLAN_ID || "",
+    env: stored.env || process.env.PAYPAL_ENV || "live",
+    clientId: stored.clientId || process.env.PAYPAL_CLIENT_ID || "",
+    clientSecret: stored.clientSecret || process.env.PAYPAL_CLIENT_SECRET || "",
+    monthlyPlanId: stored.monthlyPlanId || process.env.PAYPAL_MONTHLY_PLAN_ID || "",
   };
 }
 
 export async function getAirwallexSettings(): Promise<Required<Pick<AirwallexSettings, "env" | "countryCode" | "currency">> & AirwallexSettings> {
   const stored: Partial<AirwallexSettings> = await readProvider<AirwallexSettings>("airwallex").catch(() => ({}));
   return {
-    env: stored.env || env.AIRWALLEX_ENV || "prod",
-    clientId: stored.clientId || env.AIRWALLEX_CLIENT_ID || "",
-    apiKey: stored.apiKey || env.AIRWALLEX_API_KEY || "",
-    accountId: stored.accountId || env.AIRWALLEX_ACCOUNT_ID || "",
-    countryCode: stored.countryCode || env.AIRWALLEX_COUNTRY_CODE || "US",
-    currency: stored.currency || env.AIRWALLEX_CURRENCY || "USD",
+    env: stored.env || process.env.AIRWALLEX_ENV || "prod",
+    clientId: stored.clientId || process.env.AIRWALLEX_CLIENT_ID || "",
+    apiKey: stored.apiKey || process.env.AIRWALLEX_API_KEY || "",
+    accountId: stored.accountId || process.env.AIRWALLEX_ACCOUNT_ID || "",
+    countryCode: stored.countryCode || process.env.AIRWALLEX_COUNTRY_CODE || "US",
+    currency: stored.currency || process.env.AIRWALLEX_CURRENCY || "USD",
   };
 }
 
@@ -86,19 +78,19 @@ export async function getWorldFirstSettings(): Promise<
   Required<Pick<WorldFirstSettings, "env" | "keyVersion" | "apiBaseUrl" | "currency">> & WorldFirstSettings
 > {
   const stored: Partial<WorldFirstSettings> = await readProvider<WorldFirstSettings>("worldfirst").catch(() => ({}));
-  const worldFirstEnv = stored.env || env.WORLDFIRST_ENV || "prod";
+  const worldFirstEnv = stored.env || process.env.WORLDFIRST_ENV || "prod";
   const defaultBaseUrl =
     worldFirstEnv === "sandbox" || worldFirstEnv === "test"
-      ? env.WORLDFIRST_API_BASE_URL || ""
-      : env.WORLDFIRST_API_BASE_URL || "https://open-na.worldfirst.com";
+      ? process.env.WORLDFIRST_API_BASE_URL || ""
+      : process.env.WORLDFIRST_API_BASE_URL || "https://open-na.worldfirst.com";
   return {
     env: worldFirstEnv,
-    clientId: stored.clientId || env.WORLDFIRST_CLIENT_ID || "",
-    privateKey: stored.privateKey || env.WORLDFIRST_PRIVATE_KEY || "",
-    keyVersion: stored.keyVersion || env.WORLDFIRST_KEY_VERSION || "1",
+    clientId: stored.clientId || process.env.WORLDFIRST_CLIENT_ID || "",
+    privateKey: stored.privateKey || process.env.WORLDFIRST_PRIVATE_KEY || "",
+    keyVersion: stored.keyVersion || process.env.WORLDFIRST_KEY_VERSION || "1",
     apiBaseUrl: stored.apiBaseUrl || defaultBaseUrl,
-    accountId: stored.accountId || env.WORLDFIRST_ACCOUNT_ID || "",
-    currency: stored.currency || env.WORLDFIRST_CURRENCY || "USD",
+    accountId: stored.accountId || process.env.WORLDFIRST_ACCOUNT_ID || "",
+    currency: stored.currency || process.env.WORLDFIRST_CURRENCY || "USD",
   };
 }
 
@@ -120,8 +112,8 @@ export function centsToPrice(cents: number) {
 
 export async function getPricingSettings(): Promise<Required<PricingSettings>> {
   const stored: Partial<PricingSettings> = await readProvider<PricingSettings>("pricing").catch(() => ({}));
-  const envSingle = priceInputToCents(env.SINGLE_REPORT_PRICE || "29.99") || 2999;
-  const envMonthly = priceInputToCents(env.MONTHLY_SUBSCRIPTION_PRICE || "25.99") || 2599;
+  const envSingle = priceInputToCents(process.env.SINGLE_REPORT_PRICE || "29.99") || 2999;
+  const envMonthly = priceInputToCents(process.env.MONTHLY_SUBSCRIPTION_PRICE || "25.99") || 2599;
   return {
     singleAmountCents: validCents(stored.singleAmountCents, envSingle),
     monthlyAmountCents: validCents(stored.monthlyAmountCents, envMonthly),

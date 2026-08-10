@@ -68,7 +68,7 @@ export async function createAirwallexPaymentIntent({
   origin: string;
 }) {
   const accessToken = await airwallexAccessToken();
-  const config = planConfig(plan, appId);
+  const config = await planConfig(plan, appId);
   const currency = process.env.AIRWALLEX_CURRENCY || "USD";
   const requestId = crypto.randomUUID();
   const response = await fetch(`${airwallexBaseUrl()}/api/v1/pa/payment_intents/create`, {

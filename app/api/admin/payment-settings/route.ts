@@ -3,9 +3,12 @@ import {
   getMaskedPaymentSettings,
   getPayPalSettings,
   getAirwallexSettings,
+  getPricingSettings,
   getWorldFirstSettings,
+  priceInputToCents,
   savePaymentSettings,
 } from "../../../lib/payment-settings";
+import { updatePayPalMonthlyPlanPrice } from "../../../lib/paypal";
 
 function clean(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -24,28 +27,65 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const user = await getCurrentUser(request);
-  if (!isAdmin(user)) return json({ error: "Admin access required." }, 403);
+  if (!user || !isAdmin(user)) return json({ error: "Admin access required." }, 403);
 
   const body = (await request.json().catch(() => ({}))) as {
     paypal?: Record<string, unknown>;
     airwallex?: Record<string, unknown>;
     worldfirst?: Record<string, unknown>;
+    pricing?: Record<string, unknown>;
   };
-  const [currentPayPal, currentAirwallex, currentWorldFirst] = await Promise.all([
+  const [currentPayPal, currentAirwallex, currentWorldFirst, currentPricing] = await Promise.all([
     getPayPalSettings(),
     getAirwallexSettings(),
     getWorldFirstSettings(),
+    getPricingSettings(),
   ]);
 
-  if (body.paypal) {
-    await savePaymentSettings(
-      "paypal",
-      {
+  const nextPayPal = body.paypal
+    ? {
         env: clean(body.paypal.env) || currentPayPal.env,
         clientId: clean(body.paypal.clientId) || currentPayPal.clientId,
         clientSecret: keepSecret(clean(body.paypal.clientSecret), currentPayPal.clientSecret),
         monthlyPlanId: clean(body.paypal.monthlyPlanId) || currentPayPal.monthlyPlanId,
+      }
+    : currentPayPal;
+
+  let nextSingleAmount = currentPricing.singleAmountCents;
+  let nextMonthlyAmount = currentPricing.monthlyAmountCents;
+  if (body.pricing) {
+    const singleAmount = priceInputToCents(body.pricing.singleAmount);
+    const monthlyAmount = priceInputToCents(body.pricing.monthlyAmount);
+    if (!singleAmount || !monthlyAmount) {
+      return json({ error: "Enter valid USD prices between $0.50 and $9,999.00, with no more than two decimal places." }, 400);
+    }
+    nextSingleAmount = singleAmount;
+    nextMonthlyAmount = monthlyAmount;
+  }
+
+  const monthlyPriceChanged = nextMonthlyAmount !== currentPricing.monthlyAmountCents;
+  const syncPayPalPrice = body.pricing?.syncPaypalMonthlyPrice === true;
+  if (monthlyPriceChanged && nextPayPal.monthlyPlanId && !syncPayPalPrice) {
+    return json(
+      {
+        error:
+          "Confirm PayPal monthly price synchronization before saving. PayPal will notify existing subscribers and apply its price-change timing rules.",
       },
+      409,
+    );
+  }
+  if (syncPayPalPrice && nextPayPal.monthlyPlanId) {
+    try {
+      await updatePayPalMonthlyPlanPrice(nextMonthlyAmount, nextPayPal);
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : "PayPal monthly price synchronization failed." }, 502);
+    }
+  }
+
+  if (body.paypal) {
+    await savePaymentSettings(
+      "paypal",
+      nextPayPal,
       user.id,
     );
   }
@@ -81,5 +121,20 @@ export async function POST(request: Request) {
     );
   }
 
-  return json({ message: "Payment settings saved.", settings: await getMaskedPaymentSettings() });
+  if (body.pricing) {
+    await savePaymentSettings(
+      "pricing",
+      {
+        singleAmountCents: nextSingleAmount,
+        monthlyAmountCents: nextMonthlyAmount,
+        currency: "USD",
+      },
+      user.id,
+    );
+  }
+
+  return json({
+    message: syncPayPalPrice && nextPayPal.monthlyPlanId ? "Payment settings saved and PayPal monthly price synchronized." : "Payment settings saved.",
+    settings: await getMaskedPaymentSettings(),
+  });
 }

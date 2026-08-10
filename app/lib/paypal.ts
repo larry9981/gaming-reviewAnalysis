@@ -1,4 +1,5 @@
 import { getPayPalSettings } from "./payment-settings";
+import { planConfig } from "./payments";
 
 export type PayPalPlan = "single" | "monthly";
 
@@ -6,8 +7,10 @@ function paypalBaseUrl(paypalEnv?: string) {
   return paypalEnv === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
 }
 
-async function paypalAccessToken() {
-  const settings = await getPayPalSettings();
+type ResolvedPayPalSettings = Awaited<ReturnType<typeof getPayPalSettings>>;
+
+async function paypalAccessToken(settingsOverride?: ResolvedPayPalSettings) {
+  const settings = settingsOverride || (await getPayPalSettings());
   if (!settings.clientId || !settings.clientSecret) {
     throw new Error("PayPal is not configured. Add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET.");
   }
@@ -49,6 +52,7 @@ export async function createPayPalCheckout({
   const { accessToken, settings } = await paypalAccessToken();
 
   if (plan === "single") {
+    const config = await planConfig(plan, appId);
     const response = await fetch(`${paypalBaseUrl(settings.env)}/v2/checkout/orders`, {
       method: "POST",
       headers: {
@@ -63,7 +67,7 @@ export async function createPayPalCheckout({
             description: `Steam Guardrail full report ${appId || ""}`.trim(),
             amount: {
               currency_code: "USD",
-              value: "29.99",
+              value: (config.amount / 100).toFixed(2),
             },
           },
         ],
@@ -107,6 +111,45 @@ export async function createPayPalCheckout({
   const url = approveLink(data.links);
   if (!response.ok || !data.id || !url) throw new Error(data.message || "PayPal subscription could not be created.");
   return { id: data.id, url };
+}
+
+export async function updatePayPalMonthlyPlanPrice(amountCents: number, settingsOverride?: ResolvedPayPalSettings) {
+  const { accessToken, settings } = await paypalAccessToken(settingsOverride);
+  if (!settings.monthlyPlanId) throw new Error("PayPal monthly plan ID is not configured.");
+
+  const planUrl = `${paypalBaseUrl(settings.env)}/v1/billing/plans/${encodeURIComponent(settings.monthlyPlanId)}`;
+  const planResponse = await fetch(planUrl, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const plan = (await planResponse.json().catch(() => ({}))) as {
+    billing_cycles?: Array<{ sequence?: number; tenure_type?: string }>;
+    message?: string;
+  };
+  if (!planResponse.ok) throw new Error(plan.message || "PayPal monthly plan could not be loaded.");
+  const regularSequence = plan.billing_cycles?.find((cycle) => cycle.tenure_type === "REGULAR")?.sequence;
+  if (!regularSequence) throw new Error("PayPal monthly plan has no regular billing cycle.");
+
+  const response = await fetch(`${planUrl}/update-pricing-schemes`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      pricing_schemes: [
+        {
+          billing_cycle_sequence: regularSequence,
+          pricing_scheme: {
+            fixed_price: { value: (amountCents / 100).toFixed(2), currency_code: "USD" },
+          },
+        },
+      ],
+    }),
+  });
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as { message?: string };
+    throw new Error(data.message || "PayPal monthly plan price could not be updated.");
+  }
 }
 
 export async function capturePayPalOrder(orderId: string) {
