@@ -17,9 +17,20 @@ export type AirwallexSettings = {
   currency?: string;
 };
 
+export type WorldFirstSettings = {
+  env?: string;
+  clientId?: string;
+  privateKey?: string;
+  keyVersion?: string;
+  apiBaseUrl?: string;
+  accountId?: string;
+  currency?: string;
+};
+
 export type PaymentSettings = {
   paypal: PayPalSettings;
   airwallex: AirwallexSettings;
+  worldfirst: WorldFirstSettings;
 };
 
 function parsePayload<T>(payload?: string | null): Partial<T> {
@@ -31,7 +42,9 @@ function parsePayload<T>(payload?: string | null): Partial<T> {
   }
 }
 
-async function readProvider<T>(provider: "paypal" | "airwallex") {
+type PaymentProvider = "paypal" | "airwallex" | "worldfirst";
+
+async function readProvider<T>(provider: PaymentProvider) {
   await ensureSchema();
   const row = await getD1()
     .prepare("SELECT payload FROM payment_settings WHERE provider = ?")
@@ -62,7 +75,31 @@ export async function getAirwallexSettings(): Promise<Required<Pick<AirwallexSet
   };
 }
 
-export async function savePaymentSettings(provider: "paypal" | "airwallex", payload: PayPalSettings | AirwallexSettings, userId: string) {
+export async function getWorldFirstSettings(): Promise<
+  Required<Pick<WorldFirstSettings, "env" | "keyVersion" | "apiBaseUrl" | "currency">> & WorldFirstSettings
+> {
+  const stored = await readProvider<WorldFirstSettings>("worldfirst").catch(() => ({}));
+  const worldFirstEnv = stored.env || env.WORLDFIRST_ENV || "prod";
+  const defaultBaseUrl =
+    worldFirstEnv === "sandbox" || worldFirstEnv === "test"
+      ? env.WORLDFIRST_API_BASE_URL || ""
+      : env.WORLDFIRST_API_BASE_URL || "https://open-na.worldfirst.com";
+  return {
+    env: worldFirstEnv,
+    clientId: stored.clientId || env.WORLDFIRST_CLIENT_ID || "",
+    privateKey: stored.privateKey || env.WORLDFIRST_PRIVATE_KEY || "",
+    keyVersion: stored.keyVersion || env.WORLDFIRST_KEY_VERSION || "1",
+    apiBaseUrl: stored.apiBaseUrl || defaultBaseUrl,
+    accountId: stored.accountId || env.WORLDFIRST_ACCOUNT_ID || "",
+    currency: stored.currency || env.WORLDFIRST_CURRENCY || "USD",
+  };
+}
+
+export async function savePaymentSettings(
+  provider: PaymentProvider,
+  payload: PayPalSettings | AirwallexSettings | WorldFirstSettings,
+  userId: string,
+) {
   await ensureSchema();
   await getD1()
     .prepare("INSERT OR REPLACE INTO payment_settings (provider, payload, updated_at, updated_by) VALUES (?, ?, ?, ?)")
@@ -77,7 +114,7 @@ function mask(value?: string) {
 }
 
 export async function getMaskedPaymentSettings() {
-  const [paypal, airwallex] = await Promise.all([getPayPalSettings(), getAirwallexSettings()]);
+  const [paypal, airwallex, worldfirst] = await Promise.all([getPayPalSettings(), getAirwallexSettings(), getWorldFirstSettings()]);
   return {
     paypal: {
       env: paypal.env,
@@ -92,6 +129,15 @@ export async function getMaskedPaymentSettings() {
       accountId: mask(airwallex.accountId),
       countryCode: airwallex.countryCode,
       currency: airwallex.currency,
+    },
+    worldfirst: {
+      env: worldfirst.env,
+      clientId: mask(worldfirst.clientId),
+      privateKey: mask(worldfirst.privateKey),
+      keyVersion: worldfirst.keyVersion,
+      apiBaseUrl: worldfirst.apiBaseUrl,
+      accountId: mask(worldfirst.accountId),
+      currency: worldfirst.currency,
     },
   };
 }

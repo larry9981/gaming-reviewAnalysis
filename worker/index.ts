@@ -37,8 +37,8 @@ const contentSecurityPolicy = [
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "connect-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://api-m.paypal.com https://api-m.sandbox.paypal.com https://checkout.stripe.com",
-  "form-action 'self' https://www.paypal.com https://www.sandbox.paypal.com https://checkout.stripe.com",
+  "connect-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://api-m.paypal.com https://api-m.sandbox.paypal.com https://checkout.stripe.com https://*.worldfirst.com",
+  "form-action 'self' https://www.paypal.com https://www.sandbox.paypal.com https://checkout.stripe.com https://*.worldfirst.com",
   "upgrade-insecure-requests",
 ].join("; ");
 

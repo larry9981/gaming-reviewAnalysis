@@ -1,5 +1,11 @@
 import { getCurrentUser, isAdmin, json } from "../../../lib/data";
-import { getMaskedPaymentSettings, getPayPalSettings, getAirwallexSettings, savePaymentSettings } from "../../../lib/payment-settings";
+import {
+  getMaskedPaymentSettings,
+  getPayPalSettings,
+  getAirwallexSettings,
+  getWorldFirstSettings,
+  savePaymentSettings,
+} from "../../../lib/payment-settings";
 
 function clean(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -23,8 +29,13 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     paypal?: Record<string, unknown>;
     airwallex?: Record<string, unknown>;
+    worldfirst?: Record<string, unknown>;
   };
-  const [currentPayPal, currentAirwallex] = await Promise.all([getPayPalSettings(), getAirwallexSettings()]);
+  const [currentPayPal, currentAirwallex, currentWorldFirst] = await Promise.all([
+    getPayPalSettings(),
+    getAirwallexSettings(),
+    getWorldFirstSettings(),
+  ]);
 
   if (body.paypal) {
     await savePaymentSettings(
@@ -49,6 +60,22 @@ export async function POST(request: Request) {
         accountId: clean(body.airwallex.accountId) || currentAirwallex.accountId,
         countryCode: clean(body.airwallex.countryCode) || currentAirwallex.countryCode,
         currency: clean(body.airwallex.currency) || currentAirwallex.currency,
+      },
+      user.id,
+    );
+  }
+
+  if (body.worldfirst) {
+    await savePaymentSettings(
+      "worldfirst",
+      {
+        env: clean(body.worldfirst.env) || currentWorldFirst.env,
+        clientId: clean(body.worldfirst.clientId) || currentWorldFirst.clientId,
+        privateKey: keepSecret(clean(body.worldfirst.privateKey), currentWorldFirst.privateKey),
+        keyVersion: clean(body.worldfirst.keyVersion) || currentWorldFirst.keyVersion,
+        apiBaseUrl: clean(body.worldfirst.apiBaseUrl) || currentWorldFirst.apiBaseUrl,
+        accountId: clean(body.worldfirst.accountId) || currentWorldFirst.accountId,
+        currency: clean(body.worldfirst.currency) || currentWorldFirst.currency,
       },
       user.id,
     );

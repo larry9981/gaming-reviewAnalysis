@@ -9,6 +9,7 @@ const replacements = [
   ["render/adapters/payments.ts", "app/lib/payments.ts"],
   ["render/adapters/paypal.ts", "app/lib/paypal.ts"],
   ["render/adapters/airwallex.ts", "app/lib/airwallex.ts"],
+  ["render/adapters/worldfirst.ts", "app/lib/worldfirst.ts"],
   ["render/adapters/forgot-password-route.ts", "app/api/auth/forgot-password/route.ts"],
 ];
 

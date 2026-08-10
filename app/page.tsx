@@ -115,7 +115,7 @@ type Paywall = {
   plans: { id: "single" | "monthly"; label: string; price: string; appId?: string }[];
 };
 
-type CheckoutProvider = "paypal" | "airwallex";
+type CheckoutProvider = "paypal" | "worldfirst";
 
 type CheckoutDialog = {
   plan: "single" | "monthly";
@@ -141,6 +141,15 @@ type AdminPaymentSettings = {
     apiKey: MaskedSecret;
     accountId: MaskedSecret;
     countryCode: string;
+    currency: string;
+  };
+  worldfirst: {
+    env: string;
+    clientId: MaskedSecret;
+    privateKey: MaskedSecret;
+    keyVersion: string;
+    apiBaseUrl: string;
+    accountId: MaskedSecret;
     currency: string;
   };
 };
@@ -225,7 +234,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const [authMode, setAuthMode] = useState<"login" | "register" | "forgot" | "reset">("register");
   const [authBusy, setAuthBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState<
-    "single-stripe" | "single-paypal" | "single-airwallex" | "monthly-stripe" | "monthly-paypal" | "monthly-airwallex" | null
+    "single-stripe" | "single-paypal" | "single-worldfirst" | "monthly-stripe" | "monthly-paypal" | "monthly-worldfirst" | null
   >(null);
   const [checkoutDialog, setCheckoutDialog] = useState<CheckoutDialog | null>(null);
   const [username, setUsername] = useState("");
@@ -308,11 +317,11 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     }
   }
 
-  async function verifyAirwallex(intentId: string) {
-    const response = await fetch("/api/airwallex/verify", {
+  async function verifyWorldFirst(paymentRequestId: string) {
+    const response = await fetch("/api/worldfirst/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ intentId }),
+      body: JSON.stringify({ paymentRequestId }),
     });
     const data = await response.json();
     if (response.ok) {
@@ -344,12 +353,12 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       setMessage("PayPal checkout cancelled. No charge was made.");
       window.history.replaceState({}, "", "/");
     }
-    const airwallexIntentId = params.get("intent_id");
-    if (params.get("airwallex") === "success" && airwallexIntentId) {
-      verifyAirwallex(airwallexIntentId);
+    const worldFirstPaymentRequestId = params.get("payment_request_id") || params.get("paymentRequestId");
+    if (params.get("worldfirst") === "success" && worldFirstPaymentRequestId) {
+      verifyWorldFirst(worldFirstPaymentRequestId);
       window.history.replaceState({}, "", "/");
     }
-    if (params.get("airwallex") === "cancelled") {
+    if (params.get("worldfirst") === "cancelled") {
       setMessage("Card checkout cancelled. No charge was made.");
       window.history.replaceState({}, "", "/");
     }
@@ -574,39 +583,13 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     setCheckoutBusy(busyKey);
     setMessage(provider === "paypal" ? "Opening PayPal checkout..." : "Opening card checkout...");
     try {
-      const endpoint =
-        provider === "paypal" ? "/api/paypal/checkout" : provider === "airwallex" ? "/api/airwallex/checkout" : "/api/checkout";
+      const endpoint = provider === "paypal" ? "/api/paypal/checkout" : "/api/worldfirst/checkout";
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan, appId: appId || selected?.appId || paywall?.appId }),
       });
       const data = await response.json().catch(() => ({ error: "Checkout could not start. Please try again." }));
-      if (provider === "airwallex") {
-        if (!response.ok || !data.id || !data.clientSecret) {
-          paymentWindow?.close();
-          setMessage(data.error || "Card checkout could not start.");
-          return;
-        }
-        const { init, redirectToCheckout } = await import("@airwallex/components-sdk");
-        const sdk = (await init({
-          env: data.env || "prod",
-          enabledElements: ["payments"],
-        } as never)) as { payments?: { redirectToCheckout?: typeof redirectToCheckout } } | void;
-        const openHostedCheckout = sdk?.payments?.redirectToCheckout || redirectToCheckout;
-        const redirectResult = openHostedCheckout({
-          intent_id: data.id,
-          client_secret: data.clientSecret,
-          currency: data.currency || "USD",
-          country_code: data.countryCode || "US",
-          shopper_email: user.email,
-          methods: ["card"],
-          submitType: plan === "monthly" ? "subscribe" : "pay",
-          successUrl: data.successUrl,
-        });
-        if (typeof redirectResult === "string") window.location.assign(redirectResult);
-        return;
-      }
       if (!response.ok || !data.checkoutUrl) {
         paymentWindow?.close();
         setMessage(data.error || "Checkout could not start.");
@@ -621,8 +604,8 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       paymentWindow?.close();
       const detail = error instanceof Error ? error.message : "";
       setMessage(
-        /merchant configuration|account manager|no available payment methods|not configured/i.test(detail)
-          ? "Card checkout is connected, but this Airwallex merchant account is not enabled for this card/currency/country configuration yet. Please enable Online Payments/card acquiring in Airwallex or contact your Airwallex account manager."
+        /merchant configuration|account manager|no available payment methods|not configured|worldfirst/i.test(detail)
+          ? "Card checkout is connected, but WorldFirst merchant configuration still needs to be completed or approved for this card/currency setup."
           : "Checkout could not start. Please check your connection and try again.",
       );
     } finally {
@@ -632,10 +615,6 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
 
   async function continueCheckout() {
     if (!checkoutDialog) return;
-    if (checkoutDialog.provider === "airwallex") {
-      const form = document.getElementById("card-billing-form") as HTMLFormElement | null;
-      if (form && !form.reportValidity()) return;
-    }
     const paymentWindow = checkoutDialog.provider === "paypal" ? window.open("about:blank", "steam_guardrail_paypal") : null;
     await checkout(checkoutDialog.plan, checkoutDialog.appId, checkoutDialog.provider, paymentWindow);
   }
@@ -683,6 +662,15 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             accountId: form.get("airwallexAccountId"),
             countryCode: form.get("airwallexCountryCode"),
             currency: form.get("airwallexCurrency"),
+          },
+          worldfirst: {
+            env: form.get("worldfirstEnv"),
+            clientId: form.get("worldfirstClientId"),
+            privateKey: form.get("worldfirstPrivateKey"),
+            keyVersion: form.get("worldfirstKeyVersion"),
+            apiBaseUrl: form.get("worldfirstApiBaseUrl"),
+            accountId: form.get("worldfirstAccountId"),
+            currency: form.get("worldfirstCurrency"),
           },
         }),
       });
@@ -1262,37 +1250,45 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                     </label>
                   </article>
                   <article>
-                    <h3>Credit card / Airwallex</h3>
+                    <h3>Credit card / WorldFirst</h3>
                     <label>
                       Environment
-                      <select name="airwallexEnv" defaultValue={paymentSettings?.airwallex.env || "prod"}>
+                      <select name="worldfirstEnv" defaultValue={paymentSettings?.worldfirst.env || "prod"}>
                         <option value="prod">prod</option>
-                        <option value="demo">demo</option>
+                        <option value="test">test</option>
                         <option value="sandbox">sandbox</option>
                       </select>
                     </label>
                     <label>
                       Client ID
-                      <input name="airwallexClientId" placeholder={paymentSettings?.airwallex.clientId.preview || "Airwallex client ID"} />
+                      <input name="worldfirstClientId" placeholder={paymentSettings?.worldfirst.clientId.preview || "WorldFirst client ID"} />
                     </label>
                     <label>
-                      API Key
-                      <input name="airwallexApiKey" type="password" placeholder={paymentSettings?.airwallex.apiKey.configured ? "********" : "Airwallex API key"} />
+                      RSA Private Key
+                      <input
+                        name="worldfirstPrivateKey"
+                        type="password"
+                        placeholder={paymentSettings?.worldfirst.privateKey.configured ? "********" : "WorldFirst private key"}
+                      />
                     </label>
                     <label>
-                      Account ID
-                      <input name="airwallexAccountId" placeholder={paymentSettings?.airwallex.accountId.preview || "Optional account ID"} />
+                      API Base URL
+                      <input name="worldfirstApiBaseUrl" defaultValue={paymentSettings?.worldfirst.apiBaseUrl || "https://open-na.worldfirst.com"} />
                     </label>
                     <div className="config-pair">
                       <label>
-                        Country
-                        <input name="airwallexCountryCode" defaultValue={paymentSettings?.airwallex.countryCode || "US"} />
+                        Key version
+                        <input name="worldfirstKeyVersion" defaultValue={paymentSettings?.worldfirst.keyVersion || "1"} />
                       </label>
                       <label>
                         Currency
-                        <input name="airwallexCurrency" defaultValue={paymentSettings?.airwallex.currency || "USD"} />
+                        <input name="worldfirstCurrency" defaultValue={paymentSettings?.worldfirst.currency || "USD"} />
                       </label>
                     </div>
+                    <label>
+                      Settlement Account ID
+                      <input name="worldfirstAccountId" placeholder={paymentSettings?.worldfirst.accountId.preview || "Optional WorldFirst account ID"} />
+                    </label>
                   </article>
                 </div>
                 <button type="submit" className="primary-action" disabled={paymentSettingsBusy}>
@@ -1724,7 +1720,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               </button>
             </div>
             <p className="modal-copy">
-              Choose how you want to pay. PayPal is selected by default; card payments are securely processed by Airwallex.
+              Choose how you want to pay. PayPal is selected by default; card payments are securely processed by WorldFirst checkout.
             </p>
             {message ? <div className="error-box neutral modal-message">{message}</div> : null}
             <div className="payment-methods" role="radiogroup" aria-label="Payment method">
@@ -1740,45 +1736,22 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               </button>
               <button
                 type="button"
-                className={checkoutDialog.provider === "airwallex" ? "active" : ""}
-                onClick={() => setCheckoutDialog({ ...checkoutDialog, provider: "airwallex" })}
+                className={checkoutDialog.provider === "worldfirst" ? "active" : ""}
+                onClick={() => setCheckoutDialog({ ...checkoutDialog, provider: "worldfirst" })}
                 role="radio"
-                aria-checked={checkoutDialog.provider === "airwallex"}
+                aria-checked={checkoutDialog.provider === "worldfirst"}
               >
                 <strong>Credit card</strong>
-                <span>Visa / Mastercard through Airwallex checkout</span>
+                <span>Visa / Mastercard through WorldFirst checkout</span>
               </button>
             </div>
-            {checkoutDialog.provider === "airwallex" ? (
-              <form id="card-billing-form" className="card-entry-form">
-                <div className="form-row wide">
-                  <label htmlFor="card-name">Name on card</label>
-                  <input id="card-name" name="cardName" autoComplete="cc-name" placeholder="Jane Player" required />
-                </div>
-                <div className="form-row wide">
-                  <label htmlFor="card-number">Card number</label>
-                  <input id="card-number" name="cardNumber" autoComplete="cc-number" inputMode="numeric" placeholder="1234 1234 1234 1234" required />
-                </div>
-                <div className="form-row">
-                  <label htmlFor="card-expiry">Expiry</label>
-                  <input id="card-expiry" name="cardExpiry" autoComplete="cc-exp" placeholder="MM / YY" required />
-                </div>
-                <div className="form-row">
-                  <label htmlFor="card-cvc">CVC</label>
-                  <input id="card-cvc" name="cardCvc" autoComplete="cc-csc" inputMode="numeric" placeholder="CVC" required />
-                </div>
-                <div className="form-row wide">
-                  <label htmlFor="billing-email">Email address</label>
-                  <input id="billing-email" name="billingEmail" type="email" autoComplete="email" defaultValue={user?.email || ""} placeholder="player@example.com" required />
-                </div>
-                <div className="form-row wide">
-                  <label htmlFor="billing-address">Billing address</label>
-                  <input id="billing-address" name="billingAddress" autoComplete="billing street-address" placeholder="Street address" required />
-                </div>
+            {checkoutDialog.provider === "worldfirst" ? (
+              <div className="card-entry-form">
                 <p className="secure-note">
-                  These fields stay in the browser for checkout preparation. Final card authorization is completed on Airwallex secure payment infrastructure.
+                  You will be redirected to WorldFirst secure checkout to enter card details. Steam Guardrail never stores card numbers,
+                  expiry dates, or CVC codes.
                 </p>
-              </form>
+              </div>
             ) : null}
             <div className="modal-summary">
               <div>
@@ -1787,7 +1760,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               </div>
               <div>
                 <span>Provider</span>
-                <strong>{checkoutDialog.provider === "paypal" ? "PayPal" : "Airwallex card"}</strong>
+                <strong>{checkoutDialog.provider === "paypal" ? "PayPal" : "WorldFirst card"}</strong>
               </div>
             </div>
             <button type="button" className="primary-action modal-pay-button" onClick={continueCheckout} disabled={checkoutBusy !== null}>

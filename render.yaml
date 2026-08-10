@@ -32,15 +32,19 @@ services:
         sync: false
       - key: PAYPAL_MONTHLY_PLAN_ID
         sync: false
-      - key: AIRWALLEX_ENV
+      - key: WORLDFIRST_ENV
         value: prod
-      - key: AIRWALLEX_CLIENT_ID
+      - key: WORLDFIRST_CLIENT_ID
         sync: false
-      - key: AIRWALLEX_API_KEY
+      - key: WORLDFIRST_PRIVATE_KEY
         sync: false
-      - key: AIRWALLEX_ACCOUNT_ID
+      - key: WORLDFIRST_KEY_VERSION
+        value: "1"
+      - key: WORLDFIRST_API_BASE_URL
         sync: false
-      - key: AIRWALLEX_CURRENCY
+      - key: WORLDFIRST_ACCOUNT_ID
+        sync: false
+      - key: WORLDFIRST_CURRENCY
         value: USD
       - key: STRIPE_SECRET_KEY
         sync: false
