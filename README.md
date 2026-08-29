@@ -93,9 +93,12 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 ## Useful Commands
 
 - `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
+- `npm run build`: build for Render when Render environment variables are present; otherwise verify the vinext build output
+- `npm run build:cloudflare`: explicitly verify the vinext/Cloudflare build output
 - `npm run build:render`: switch to the Render/Postgres adapters and verify the Next.js build used by Render
-- `npm run start:render`: start the Render-compatible Next.js server on `$PORT`
+- `npm run start`: start the Render server on Render; otherwise start vinext
+- `npm run start:cloudflare`: explicitly start vinext
+- `npm run start:render`: explicitly start the Render-compatible Next.js server on `$PORT`
 - `npm test`: build the starter and verify its rendered loading skeleton
 - `npm run db:generate`: generate Drizzle migrations after schema changes
 
