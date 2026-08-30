@@ -51,7 +51,9 @@ export async function ensureSchema() {
     ),
     db.prepare("CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS entitlements_user_idx ON entitlements (user_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS checkout_user_idx ON checkout_sessions (user_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS checkout_provider_idx ON checkout_sessions (provider_session_id)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS password_resets_user_idx ON password_resets (user_id)"),
   ]);
   await db.prepare("ALTER TABLE users ADD COLUMN username TEXT").run().catch(() => undefined);
 }

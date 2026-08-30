@@ -98,7 +98,8 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 - `npm run build:render`: switch to the Render/Postgres adapters and verify the Next.js build used by Render
 - `npm run start`: start the Render server on Render; otherwise start vinext
 - `npm run start:cloudflare`: explicitly start vinext
-- `npm run start:render`: explicitly start the Render-compatible Next.js server on `$PORT`
+- `npm run start:render`: migrate Render Postgres and start the Next.js server on `$PORT`
+- `npm run db:migrate:render`: create or upgrade the Render Postgres schema from `render/schema.sql`
 - `npm test`: build the starter and verify its rendered loading skeleton
 - `npm run db:generate`: generate Drizzle migrations after schema changes
 
@@ -133,9 +134,9 @@ Recommended Render setup:
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
    - `RESET_PASSWORD_WEBHOOK_URL` if password reset email delivery is connected
-5. Deploy. Render will run `pnpm run build:render` and `pnpm run start:render`.
+5. Deploy. Render injects the database's internal connection string as `DATABASE_URL`, runs `pnpm run db:migrate:render`, and then starts the service.
 
-The Render app reads `DATABASE_URL` from the managed Postgres instance and creates its required tables on first use.
+The migration is idempotent and creates the tables used for users, sessions, password resets, checkouts, entitlements, payment settings, game reports, and the daily trending cache. The `/api/health` deployment check returns success only when the database is connected. Runtime schema initialization remains as a fallback for manually configured Render services.
 
 WorldFirst checkout uses the official Cashier Payment redirect flow: the server signs each create/inquiry request with
 RSA256, the browser redirects to WorldFirst checkout, and the app verifies the payment before granting access. Store

@@ -10,8 +10,9 @@ services:
     runtime: node
     plan: starter
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm run build:render
+    preDeployCommand: pnpm run db:migrate:render
     startCommand: pnpm run start:render
-    healthCheckPath: /security
+    healthCheckPath: /api/health
     autoDeployTrigger: commit
     envVars:
       - key: NODE_VERSION

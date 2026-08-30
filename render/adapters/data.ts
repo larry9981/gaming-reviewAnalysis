@@ -194,7 +194,9 @@ export async function ensureSchema() {
       );
       CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
       CREATE INDEX IF NOT EXISTS entitlements_user_idx ON entitlements (user_id);
+      CREATE INDEX IF NOT EXISTS checkout_user_idx ON checkout_sessions (user_id);
       CREATE INDEX IF NOT EXISTS checkout_provider_idx ON checkout_sessions (provider_session_id);
+      CREATE INDEX IF NOT EXISTS password_resets_user_idx ON password_resets (user_id);
     `);
   })();
   await schemaReady;

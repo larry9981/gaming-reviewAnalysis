@@ -13,10 +13,11 @@
     "build:render": "node scripts/prepare-render.mjs && next build --webpack",
     "start": "node scripts/platform-command.mjs start",
     "start:cloudflare": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "start:render": "next start -H 0.0.0.0 -p ${PORT:-10000}",
+    "start:render": "node scripts/migrate-render.mjs && next start -H 0.0.0.0 -p ${PORT:-10000}",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:render": "node scripts/migrate-render.mjs"
   },
   "dependencies": {
     "@airwallex/components-sdk": "^1.32.0",
