@@ -1,6 +1,9 @@
-import { ensureSchema, getD1, json, randomId, sessionCookie, verifyPassword } from "../../../lib/data";
+import { ensureSchema, getD1, isDataStoreConfigured, json, randomId, sessionCookie, verifyPassword } from "../../../lib/data";
 
 export async function POST(request: Request) {
+  if (!isDataStoreConfigured()) {
+    return json({ error: "Account service is temporarily unavailable." }, 503);
+  }
   try {
     await ensureSchema();
     const { email, password } = (await request.json().catch(() => ({}))) as {
@@ -28,6 +31,7 @@ export async function POST(request: Request) {
       { "Set-Cookie": sessionCookie(sessionId, expiresAt) },
     );
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Login failed." }, 500);
+    console.error("Login failed", error);
+    return json({ error: "Login failed. Please try again later." }, 500);
   }
 }

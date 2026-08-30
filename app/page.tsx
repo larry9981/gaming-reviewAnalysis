@@ -279,10 +279,16 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   const showAdmin = page === "admin";
 
   async function loadMe() {
-    const response = await fetch("/api/me");
-    const data = await response.json();
-    setUser(data.user || null);
-    setEntitlements(data.entitlements || []);
+    try {
+      const response = await fetch("/api/me");
+      const data = await response.json();
+      if (!response.ok) throw new Error("Account service unavailable");
+      setUser(data.user || null);
+      setEntitlements(data.entitlements || []);
+    } catch {
+      setUser(null);
+      setEntitlements([]);
+    }
   }
 
   async function loadTrending() {

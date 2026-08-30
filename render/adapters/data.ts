@@ -16,6 +16,10 @@ const encoder = new TextEncoder();
 let pool: Pool | null = null;
 let schemaReady: Promise<void> | null = null;
 
+export function isDataStoreConfigured() {
+  return Boolean(process.env.DATABASE_URL);
+}
+
 function getPool() {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is required when running on Render.");

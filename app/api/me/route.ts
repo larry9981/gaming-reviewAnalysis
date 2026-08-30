@@ -1,6 +1,9 @@
-import { getCurrentUser, getD1, isAdmin, json } from "../../lib/data";
+import { getCurrentUser, getD1, isAdmin, isDataStoreConfigured, json } from "../../lib/data";
 
 export async function GET(request: Request) {
+  if (!isDataStoreConfigured()) {
+    return json({ user: null, entitlements: [], accountServiceAvailable: false });
+  }
   const user = await getCurrentUser(request);
   if (!user) return json({ user: null, entitlements: [] });
   const entitlements = await getD1()

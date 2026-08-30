@@ -11,6 +11,10 @@ export type AuthUser = {
 
 const encoder = new TextEncoder();
 
+export function isDataStoreConfigured() {
+  return Boolean(env.DB);
+}
+
 export function getD1(): D1Database {
   if (!env.DB) {
     throw new Error("D1 binding DB is not configured.");

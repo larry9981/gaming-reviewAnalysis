@@ -1,6 +1,9 @@
-import { ensureSchema, getD1, hashPassword, json, randomId, sessionCookie } from "../../../lib/data";
+import { ensureSchema, getD1, hashPassword, isDataStoreConfigured, json, randomId, sessionCookie } from "../../../lib/data";
 
 export async function POST(request: Request) {
+  if (!isDataStoreConfigured()) {
+    return json({ error: "Account service is temporarily unavailable." }, 503);
+  }
   try {
     await ensureSchema();
     const { username, email, password } = (await request.json().catch(() => ({}))) as {
@@ -42,6 +45,7 @@ export async function POST(request: Request) {
       { "Set-Cookie": sessionCookie(sessionId, expiresAt) },
     );
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Registration failed." }, 500);
+    console.error("Registration failed", error);
+    return json({ error: "Registration failed. Please try again later." }, 500);
   }
 }
