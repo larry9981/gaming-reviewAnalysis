@@ -26,6 +26,10 @@ services:
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
       - key: ADMIN_EMAILS
+        value: jqqbest@gmail.com
+      - key: ADMIN_BOOTSTRAP_EMAIL
+        value: jqqbest@gmail.com
+      - key: ADMIN_BOOTSTRAP_PASSWORD
         sync: false
       - key: PAYPAL_ENV
         value: live

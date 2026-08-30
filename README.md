@@ -120,7 +120,7 @@ Recommended Render setup:
 2. In Render, create a new Blueprint from the GitHub repository.
 3. Let Render provision `steam-guardrail-db` Postgres from `render.yaml`.
 4. Set the `sync: false` secrets in the Render dashboard:
-   - `ADMIN_EMAILS`
+   - `ADMIN_BOOTSTRAP_PASSWORD` once, to create the initial `jqqbest@gmail.com` administrator (12 characters minimum)
    - `PAYPAL_CLIENT_ID`
    - `PAYPAL_CLIENT_SECRET`
    - `PAYPAL_MONTHLY_PLAN_ID`
@@ -137,6 +137,7 @@ Recommended Render setup:
 5. Deploy. Render injects the database's internal connection string as `DATABASE_URL`, runs `pnpm run db:migrate:render`, and then starts the service.
 
 The migration is idempotent and creates the tables used for users, sessions, password resets, checkouts, entitlements, payment settings, game reports, and the daily trending cache. The `/api/health` deployment check returns success only when the database is connected. Runtime schema initialization remains as a fallback for manually configured Render services.
+The admin bootstrap inserts the administrator only when that email does not exist; later deployments confirm the admin role without replacing the stored password. Remove `ADMIN_BOOTSTRAP_PASSWORD` from Render after the first successful deployment.
 
 WorldFirst checkout uses the official Cashier Payment redirect flow: the server signs each create/inquiry request with
 RSA256, the browser redirects to WorldFirst checkout, and the app verifies the payment before granting access. Store
