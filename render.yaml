@@ -38,7 +38,7 @@ services:
       - key: PAYPAL_CLIENT_SECRET
         sync: false
       - key: PAYPAL_MONTHLY_PLAN_ID
-        sync: false
+        value: MKHKXQTQPB8MU
       - key: WORLDFIRST_ENV
         value: prod
       - key: WORLDFIRST_CLIENT_ID

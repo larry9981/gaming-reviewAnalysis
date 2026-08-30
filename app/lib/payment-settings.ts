@@ -51,6 +51,8 @@ function parsePayload<T>(payload?: string | null): Partial<T> {
 
 type PaymentProvider = "paypal" | "airwallex" | "worldfirst" | "pricing";
 
+const DEFAULT_PAYPAL_MONTHLY_PLAN_ID = "MKHKXQTQPB8MU";
+
 async function readProvider<T>(provider: PaymentProvider) {
   await ensureSchema();
   const row = await getD1()
@@ -66,7 +68,7 @@ export async function getPayPalSettings(): Promise<Required<Pick<PayPalSettings,
     env: stored.env || env.PAYPAL_ENV || "live",
     clientId: stored.clientId || env.PAYPAL_CLIENT_ID || "",
     clientSecret: stored.clientSecret || env.PAYPAL_CLIENT_SECRET || "",
-    monthlyPlanId: stored.monthlyPlanId || env.PAYPAL_MONTHLY_PLAN_ID || "",
+    monthlyPlanId: stored.monthlyPlanId || env.PAYPAL_MONTHLY_PLAN_ID || DEFAULT_PAYPAL_MONTHLY_PLAN_ID,
   };
 }
 
