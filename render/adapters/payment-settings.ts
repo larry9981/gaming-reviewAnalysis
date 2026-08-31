@@ -5,6 +5,7 @@ export type PayPalSettings = {
   clientId?: string;
   clientSecret?: string;
   monthlyPlanId?: string;
+  singleHostedButtonId?: string;
   monthlyHostedButtonId?: string;
   receiverEmail?: string;
 };
@@ -36,6 +37,7 @@ export type PricingSettings = {
 
 type PaymentProvider = "paypal" | "airwallex" | "worldfirst" | "pricing";
 
+const DEFAULT_PAYPAL_SINGLE_HOSTED_BUTTON_ID = "M2BWCCYUQSDB8";
 const DEFAULT_PAYPAL_MONTHLY_HOSTED_BUTTON_ID = "MKHKXQTQPB8MU";
 const DEFAULT_PAYPAL_RECEIVER_EMAIL = "314104801@qq.com";
 const LEGACY_PAYPAL_RECEIVER_EMAIL = "jqqbest@gmail.com";
@@ -75,6 +77,10 @@ export async function getPayPalSettings(): Promise<Required<Pick<PayPalSettings,
     clientId: stored.clientId || process.env.PAYPAL_CLIENT_ID || "",
     clientSecret: stored.clientSecret || process.env.PAYPAL_CLIENT_SECRET || "",
     monthlyPlanId: isPayPalPlanId(legacyMonthlyId) ? legacyMonthlyId : "",
+    singleHostedButtonId:
+      stored.singleHostedButtonId ||
+      process.env.PAYPAL_SINGLE_HOSTED_BUTTON_ID ||
+      DEFAULT_PAYPAL_SINGLE_HOSTED_BUTTON_ID,
     monthlyHostedButtonId:
       stored.monthlyHostedButtonId ||
       process.env.PAYPAL_MONTHLY_HOSTED_BUTTON_ID ||
@@ -174,6 +180,7 @@ export async function getMaskedPaymentSettings() {
       clientId: mask(paypal.clientId),
       clientSecret: mask(paypal.clientSecret),
       monthlyPlanId: mask(paypal.monthlyPlanId),
+      singleHostedButtonId: mask(paypal.singleHostedButtonId),
       monthlyHostedButtonId: mask(paypal.monthlyHostedButtonId),
       receiverEmail: paypal.receiverEmail || "",
     },

@@ -1,7 +1,18 @@
 import { ensureSchema, getD1, randomId } from "../../../lib/data";
 import { getPayPalSettings, getPricingSettings } from "../../../lib/payment-settings";
 
-const MONTH_MS = 1000 * 60 * 60 * 24 * 31;
+const DAY_MS = 1000 * 60 * 60 * 24;
+const SINGLE_ACCESS_DAYS = 30;
+
+function addUtcMonth(timestamp: number) {
+  const date = new Date(timestamp);
+  const originalDay = date.getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() + 1);
+  const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(originalDay, lastDay));
+  return date.getTime();
+}
 
 function empty(status = 200) {
   return new Response("", { status, headers: { "Content-Type": "text/plain" } });
@@ -24,9 +35,13 @@ async function verifyIpn(rawBody: string, paypalEnv?: string) {
 }
 
 type PayPalCheckout = {
+  id: string;
   userId: string;
   plan: string;
   appId?: string | null;
+  expectedAmountCents?: number | null;
+  currency?: string | null;
+  accessDays?: number | null;
 };
 
 async function handleSinglePayment(params: URLSearchParams, checkoutId: string, checkout: PayPalCheckout) {
@@ -47,15 +62,17 @@ async function handleSinglePayment(params: URLSearchParams, checkoutId: string, 
   const eventType = params.get("txn_type") || "";
   if (eventType !== "web_accept" || paymentStatus !== "Completed") return;
 
-  const pricing = await getPricingSettings();
+  const pricing = checkout.expectedAmountCents ? null : await getPricingSettings();
+  const expectedAmountCents = Number(checkout.expectedAmountCents || pricing?.singleAmountCents || 0);
+  const expectedCurrency = checkout.currency || "USD";
   const paidCents = Math.round(Number(params.get("mc_gross") || "") * 100);
   const quantity = params.get("quantity") || "1";
   if (
-    params.get("mc_currency") !== "USD" ||
-    paidCents !== pricing.singleAmountCents ||
+    params.get("mc_currency") !== expectedCurrency ||
+    paidCents !== expectedAmountCents ||
     quantity !== "1" ||
     params.get("invoice") !== checkoutId ||
-    params.get("item_number") !== checkout.appId
+    (params.get("item_number") && params.get("item_number") !== checkout.appId)
   ) {
     return;
   }
@@ -80,9 +97,17 @@ async function handleSinglePayment(params: URLSearchParams, checkoutId: string, 
         .bind(randomId("evt"), transactionId, eventType, paymentStatus, now),
       getD1()
         .prepare(
-          "INSERT INTO entitlements (id, user_id, kind, app_id, status, provider, provider_ref, current_period_end, created_at) VALUES (?, ?, 'single', ?, 'active', 'paypal', ?, ?, ?)",
+          "INSERT INTO entitlements (id, user_id, kind, app_id, status, provider, provider_ref, current_period_end, billing_amount_cents, cancel_at_period_end, created_at) VALUES (?, ?, 'single', ?, 'active', 'paypal', ?, ?, ?, 0, ?)",
         )
-        .bind(randomId("ent"), checkout.userId, checkout.appId, transactionId, now + MONTH_MS, now),
+        .bind(
+          randomId("ent"),
+          checkout.userId,
+          checkout.appId,
+          transactionId,
+          now + Number(checkout.accessDays || SINGLE_ACCESS_DAYS) * DAY_MS,
+          expectedAmountCents,
+          now,
+        ),
       getD1()
         .prepare("UPDATE checkout_sessions SET provider_session_id = ?, status = 'paid' WHERE id = ?")
         .bind(transactionId, checkoutId),
@@ -131,18 +156,27 @@ export async function POST(request: Request) {
     return empty();
   }
 
-  const checkoutId = params.get("custom") || "";
+  const requestedCheckoutId = params.get("custom") || "";
   const eventType = params.get("txn_type") || "";
-  if (!checkoutId) return empty();
+  const subscriptionId = params.get("subscr_id") || "";
+  if (!requestedCheckoutId && !subscriptionId) return empty();
 
   await ensureSchema();
-  const checkout = await getD1()
-    .prepare(
-      "SELECT user_id as userId, plan, app_id as appId FROM checkout_sessions WHERE id = ? AND provider = 'paypal' LIMIT 1",
-    )
-    .bind(checkoutId)
-    .first<PayPalCheckout>();
+  const checkout = requestedCheckoutId
+    ? await getD1()
+        .prepare(
+          "SELECT id, user_id as userId, plan, app_id as appId, expected_amount_cents as expectedAmountCents, currency, access_days as accessDays FROM checkout_sessions WHERE id = ? AND provider = 'paypal' LIMIT 1",
+        )
+        .bind(requestedCheckoutId)
+        .first<PayPalCheckout>()
+    : await getD1()
+        .prepare(
+          "SELECT id, user_id as userId, plan, app_id as appId, expected_amount_cents as expectedAmountCents, currency, access_days as accessDays FROM checkout_sessions WHERE provider_session_id = ? AND provider = 'paypal' LIMIT 1",
+        )
+        .bind(subscriptionId)
+        .first<PayPalCheckout>();
   if (!checkout) return empty();
+  const checkoutId = checkout.id;
 
   if (checkout.plan === "single") {
     await handleSinglePayment(params, checkoutId, checkout);
@@ -150,16 +184,27 @@ export async function POST(request: Request) {
   }
   if (checkout.plan !== "monthly") return empty();
 
-  const subscriptionId = params.get("subscr_id") || "";
   if (!subscriptionId) return empty();
 
-  if (["subscr_cancel", "subscr_eot"].includes(eventType)) {
+  if (eventType === "subscr_cancel") {
+    await getD1().batch([
+      getD1()
+        .prepare("UPDATE checkout_sessions SET provider_session_id = ?, status = 'cancel_pending' WHERE id = ?")
+        .bind(subscriptionId, checkoutId),
+      getD1()
+        .prepare("UPDATE entitlements SET cancel_at_period_end = 1 WHERE provider_ref = ? AND status = 'active'")
+        .bind(subscriptionId),
+    ]);
+    return empty();
+  }
+
+  if (eventType === "subscr_eot") {
     await getD1().batch([
       getD1()
         .prepare("UPDATE checkout_sessions SET provider_session_id = ?, status = 'cancelled' WHERE id = ?")
         .bind(subscriptionId, checkoutId),
       getD1()
-        .prepare("UPDATE entitlements SET status = 'cancelled', current_period_end = ? WHERE provider_ref = ?")
+        .prepare("UPDATE entitlements SET status = 'cancelled', current_period_end = ?, cancel_at_period_end = 0 WHERE provider_ref = ?")
         .bind(Date.now(), subscriptionId),
     ]);
     return empty();
@@ -167,7 +212,7 @@ export async function POST(request: Request) {
 
   if (eventType === "subscr_signup") {
     await getD1()
-      .prepare("UPDATE checkout_sessions SET provider_session_id = ?, status = 'pending' WHERE id = ?")
+      .prepare("UPDATE checkout_sessions SET provider_session_id = ?, status = 'pending' WHERE id = ? AND status <> 'paid'")
       .bind(subscriptionId, checkoutId)
       .run();
     return empty();
@@ -183,9 +228,11 @@ export async function POST(request: Request) {
   }
   if (paymentStatus !== "Completed") return empty();
 
-  const pricing = await getPricingSettings();
+  const pricing = checkout.expectedAmountCents ? null : await getPricingSettings();
+  const expectedAmountCents = Number(checkout.expectedAmountCents || pricing?.monthlyAmountCents || 0);
+  const expectedCurrency = checkout.currency || "USD";
   const paidCents = Math.round(Number(params.get("mc_gross") || "") * 100);
-  if (params.get("mc_currency") !== "USD" || paidCents !== pricing.monthlyAmountCents) return empty();
+  if (params.get("mc_currency") !== expectedCurrency || paidCents !== expectedAmountCents) return empty();
 
   const transactionId = params.get("txn_id") || "";
   if (!transactionId) return empty();
@@ -202,7 +249,7 @@ export async function POST(request: Request) {
     .prepare("SELECT id, current_period_end as currentPeriodEnd FROM entitlements WHERE provider_ref = ? LIMIT 1")
     .bind(subscriptionId)
     .first<{ id: string; currentPeriodEnd?: number | null }>();
-  const periodEnd = Math.max(now, Number(entitlement?.currentPeriodEnd || 0)) + MONTH_MS;
+  const periodEnd = addUtcMonth(Math.max(now, Number(entitlement?.currentPeriodEnd || 0)));
   const eventStatement = getD1()
     .prepare(
       "INSERT INTO payment_events (id, provider, provider_event_id, event_type, status, created_at) VALUES (?, 'paypal-ipn', ?, ?, ?, ?)",
@@ -210,13 +257,15 @@ export async function POST(request: Request) {
     .bind(randomId("evt"), transactionId, eventType, paymentStatus, now);
   const entitlementStatement = entitlement
     ? getD1()
-        .prepare("UPDATE entitlements SET status = 'active', current_period_end = ? WHERE id = ?")
-        .bind(periodEnd, entitlement.id)
+        .prepare(
+          "UPDATE entitlements SET status = 'active', current_period_end = ?, billing_amount_cents = ?, cancel_at_period_end = 0 WHERE id = ?",
+        )
+        .bind(periodEnd, expectedAmountCents, entitlement.id)
     : getD1()
         .prepare(
-          "INSERT INTO entitlements (id, user_id, kind, app_id, status, provider, provider_ref, current_period_end, created_at) VALUES (?, ?, 'monthly', ?, 'active', 'paypal', ?, ?, ?)",
+          "INSERT INTO entitlements (id, user_id, kind, app_id, status, provider, provider_ref, current_period_end, billing_amount_cents, cancel_at_period_end, created_at) VALUES (?, ?, 'monthly', ?, 'active', 'paypal', ?, ?, ?, 0, ?)",
         )
-        .bind(randomId("ent"), checkout.userId, checkout.appId || null, subscriptionId, periodEnd, now);
+        .bind(randomId("ent"), checkout.userId, checkout.appId || null, subscriptionId, periodEnd, expectedAmountCents, now);
 
   try {
     await getD1().batch([

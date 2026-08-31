@@ -37,6 +37,8 @@ services:
         sync: false
       - key: PAYPAL_CLIENT_SECRET
         sync: false
+      - key: PAYPAL_SINGLE_HOSTED_BUTTON_ID
+        value: M2BWCCYUQSDB8
       - key: PAYPAL_MONTHLY_HOSTED_BUTTON_ID
         value: MKHKXQTQPB8MU
       - key: PAYPAL_RECEIVER_EMAIL

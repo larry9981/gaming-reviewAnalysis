@@ -140,6 +140,7 @@ type AdminPaymentSettings = {
     clientId: MaskedSecret;
     clientSecret: MaskedSecret;
     monthlyPlanId: MaskedSecret;
+    singleHostedButtonId: MaskedSecret;
     monthlyHostedButtonId: MaskedSecret;
     receiverEmail: string;
   };
@@ -348,7 +349,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   }
 
   async function verifyHostedPayPal(checkoutId: string) {
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
       const response = await fetch(`/api/paypal/hosted-status?checkout=${encodeURIComponent(checkoutId)}`);
       const data = await response.json().catch(() => ({ error: "PayPal status is unavailable." }));
       if (response.ok && data.paid) {
@@ -360,7 +361,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
         setMessage(data.error || "PayPal status is unavailable.");
         return;
       }
-      if (attempt < 3) await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      if (attempt < 19) await new Promise((resolve) => window.setTimeout(resolve, 3000));
     }
     setMessage("PayPal is processing the payment. Access will unlock automatically after payment confirmation.");
   }
@@ -529,14 +530,17 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
   }
 
   async function cancelSubscription() {
+    const paymentWindow = window.open("about:blank", "steam_guardrail_paypal_manage");
     const response = await fetch("/api/account/cancel-subscription", { method: "POST" });
     const data = await response.json().catch(() => ({ error: "Cancellation failed." }));
     if (!response.ok) {
+      paymentWindow?.close();
       setMessage(data.error || "Cancellation failed.");
       return;
     }
-    setMessage(data.message || "Subscription cancelled.");
-    await loadMe();
+    if (paymentWindow && data.manageUrl) paymentWindow.location.href = data.manageUrl;
+    else if (data.manageUrl) window.location.href = data.manageUrl;
+    setMessage(data.message || "Continue in PayPal to manage your subscription.");
   }
 
   async function openReport(appId = input || selected?.appId || "", scrollAfterLoad = false) {
@@ -709,6 +713,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             clientId: form.get("paypalClientId"),
             clientSecret: form.get("paypalClientSecret"),
             monthlyPlanId: form.get("paypalMonthlyPlanId"),
+            singleHostedButtonId: form.get("paypalSingleHostedButtonId"),
             monthlyHostedButtonId: form.get("paypalMonthlyHostedButtonId"),
             receiverEmail: form.get("paypalReceiverEmail"),
           },
@@ -732,6 +737,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
           pricing: {
             singleAmount: form.get("singleAmount"),
             monthlyAmount: form.get("monthlyAmount"),
+            confirmPaypalHostedPrices: form.get("confirmPaypalHostedPrices") === "on",
             syncPaypalMonthlyPrice: form.get("syncPaypalMonthlyPrice") === "on",
           },
         }),
@@ -1086,7 +1092,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               </div>
               {entitlements.some((item) => item.kind === "monthly" && item.status === "active") ? (
                 <button type="button" onClick={cancelSubscription}>
-                  Cancel subscription
+                  Manage / cancel in PayPal
                 </button>
               ) : null}
               <button type="button" onClick={logout}>
@@ -1319,6 +1325,10 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                       </label>
                     </div>
                     <label className="paypal-price-sync">
+                      <input name="confirmPaypalHostedPrices" type="checkbox" />
+                      <span>I updated the matching PayPal Hosted Button prices before saving changed website prices.</span>
+                    </label>
+                    <label className="paypal-price-sync">
                       <input name="syncPaypalMonthlyPrice" type="checkbox" />
                       <span>Synchronize the monthly price with the configured PayPal Billing Plan.</span>
                     </label>
@@ -1342,6 +1352,13 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                     <label>
                       Client Secret (optional REST fallback)
                       <input name="paypalClientSecret" type="password" placeholder={paymentSettings?.paypal.clientSecret.configured ? "********" : "Optional PayPal client secret"} />
+                    </label>
+                    <label>
+                      Single-payment Hosted Button ID
+                      <input
+                        name="paypalSingleHostedButtonId"
+                        placeholder={paymentSettings?.paypal.singleHostedButtonId.preview || "PayPal single hosted_button_id"}
+                      />
                     </label>
                     <label>
                       Monthly Hosted Button ID

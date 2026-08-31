@@ -168,6 +168,8 @@ export async function ensureSchema() {
         provider TEXT NOT NULL,
         provider_ref TEXT UNIQUE,
         current_period_end BIGINT,
+        billing_amount_cents BIGINT,
+        cancel_at_period_end BIGINT NOT NULL DEFAULT 0,
         created_at BIGINT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS checkout_sessions (
@@ -178,6 +180,9 @@ export async function ensureSchema() {
         provider TEXT NOT NULL,
         provider_session_id TEXT,
         status TEXT NOT NULL,
+        expected_amount_cents BIGINT,
+        currency TEXT,
+        access_days BIGINT,
         created_at BIGINT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS game_reports (
@@ -215,6 +220,11 @@ export async function ensureSchema() {
         status TEXT NOT NULL,
         created_at BIGINT NOT NULL
       );
+      ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS expected_amount_cents BIGINT;
+      ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS currency TEXT;
+      ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS access_days BIGINT;
+      ALTER TABLE entitlements ADD COLUMN IF NOT EXISTS billing_amount_cents BIGINT;
+      ALTER TABLE entitlements ADD COLUMN IF NOT EXISTS cancel_at_period_end BIGINT NOT NULL DEFAULT 0;
       CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
       CREATE INDEX IF NOT EXISTS entitlements_user_idx ON entitlements (user_id);
       CREATE INDEX IF NOT EXISTS checkout_user_idx ON checkout_sessions (user_id);

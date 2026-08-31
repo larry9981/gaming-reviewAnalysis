@@ -48,6 +48,7 @@ export async function POST(request: Request) {
         clientId: clean(body.paypal.clientId) || currentPayPal.clientId,
         clientSecret: keepSecret(clean(body.paypal.clientSecret), currentPayPal.clientSecret),
         monthlyPlanId: clean(body.paypal.monthlyPlanId) || currentPayPal.monthlyPlanId,
+        singleHostedButtonId: clean(body.paypal.singleHostedButtonId) || currentPayPal.singleHostedButtonId,
         monthlyHostedButtonId: clean(body.paypal.monthlyHostedButtonId) || currentPayPal.monthlyHostedButtonId,
         receiverEmail: (clean(body.paypal.receiverEmail) || currentPayPal.receiverEmail || "").toLowerCase(),
       }
@@ -56,11 +57,17 @@ export async function POST(request: Request) {
   if (nextPayPal.monthlyPlanId && !/^P-[A-Z0-9]+$/i.test(nextPayPal.monthlyPlanId)) {
     return json({ error: "PayPal REST Plan ID must start with P-. Use Hosted Button ID for an _s-xclick button." }, 400);
   }
+  if (nextPayPal.singleHostedButtonId && !/^[A-Z0-9]{8,32}$/i.test(nextPayPal.singleHostedButtonId)) {
+    return json({ error: "Enter a valid PayPal single-payment Hosted Button ID." }, 400);
+  }
   if (nextPayPal.monthlyHostedButtonId && !/^[A-Z0-9]{8,32}$/i.test(nextPayPal.monthlyHostedButtonId)) {
     return json({ error: "Enter a valid PayPal Hosted Button ID." }, 400);
   }
-  if (nextPayPal.monthlyHostedButtonId && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nextPayPal.receiverEmail || "")) {
-    return json({ error: "PayPal receiver email is required to securely verify Hosted Button payments." }, 400);
+  if (
+    (nextPayPal.singleHostedButtonId || nextPayPal.monthlyHostedButtonId) &&
+    !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nextPayPal.receiverEmail || "")
+  ) {
+    return json({ error: "PayPal receiver email is required to securely verify payments." }, 400);
   }
 
   let nextSingleAmount = currentPricing.singleAmountCents;
@@ -75,7 +82,22 @@ export async function POST(request: Request) {
     nextMonthlyAmount = monthlyAmount;
   }
 
+  const singlePriceChanged = nextSingleAmount !== currentPricing.singleAmountCents;
   const monthlyPriceChanged = nextMonthlyAmount !== currentPricing.monthlyAmountCents;
+  const confirmHostedPrices = body.pricing?.confirmPaypalHostedPrices === true;
+  if (
+    !confirmHostedPrices &&
+    ((singlePriceChanged && nextPayPal.singleHostedButtonId) ||
+      (monthlyPriceChanged && nextPayPal.monthlyHostedButtonId))
+  ) {
+    return json(
+      {
+        error:
+          "Update the matching PayPal Hosted Button price first, then confirm Hosted Button prices before saving the website price.",
+      },
+      409,
+    );
+  }
   const syncPayPalPrice = body.pricing?.syncPaypalMonthlyPrice === true;
   if (monthlyPriceChanged && nextPayPal.monthlyPlanId && !syncPayPalPrice) {
     return json(

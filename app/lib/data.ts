@@ -32,10 +32,10 @@ export async function ensureSchema() {
       "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL)",
     ),
     db.prepare(
-      "CREATE TABLE IF NOT EXISTS entitlements (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, kind TEXT NOT NULL, app_id TEXT, status TEXT NOT NULL, provider TEXT NOT NULL, provider_ref TEXT, current_period_end INTEGER, created_at INTEGER NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS entitlements (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, kind TEXT NOT NULL, app_id TEXT, status TEXT NOT NULL, provider TEXT NOT NULL, provider_ref TEXT, current_period_end INTEGER, billing_amount_cents INTEGER, cancel_at_period_end INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)",
     ),
     db.prepare(
-      "CREATE TABLE IF NOT EXISTS checkout_sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, plan TEXT NOT NULL, app_id TEXT, provider TEXT NOT NULL, provider_session_id TEXT, status TEXT NOT NULL, created_at INTEGER NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS checkout_sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, plan TEXT NOT NULL, app_id TEXT, provider TEXT NOT NULL, provider_session_id TEXT, status TEXT NOT NULL, expected_amount_cents INTEGER, currency TEXT, access_days INTEGER, created_at INTEGER NOT NULL)",
     ),
     db.prepare(
       "CREATE TABLE IF NOT EXISTS game_reports (app_id TEXT PRIMARY KEY, title TEXT NOT NULL, risk_score INTEGER NOT NULL, verdict TEXT NOT NULL, payload TEXT NOT NULL, updated_at INTEGER NOT NULL)",
@@ -61,6 +61,11 @@ export async function ensureSchema() {
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS payment_events_provider_idx ON payment_events (provider, provider_event_id, event_type, status)"),
   ]);
   await db.prepare("ALTER TABLE users ADD COLUMN username TEXT").run().catch(() => undefined);
+  await db.prepare("ALTER TABLE checkout_sessions ADD COLUMN expected_amount_cents INTEGER").run().catch(() => undefined);
+  await db.prepare("ALTER TABLE checkout_sessions ADD COLUMN currency TEXT").run().catch(() => undefined);
+  await db.prepare("ALTER TABLE checkout_sessions ADD COLUMN access_days INTEGER").run().catch(() => undefined);
+  await db.prepare("ALTER TABLE entitlements ADD COLUMN billing_amount_cents INTEGER").run().catch(() => undefined);
+  await db.prepare("ALTER TABLE entitlements ADD COLUMN cancel_at_period_end INTEGER NOT NULL DEFAULT 0").run().catch(() => undefined);
 }
 
 export function randomId(prefix: string) {

@@ -43,11 +43,13 @@ export function buildPayPalHostedButtonUrl({
   checkoutId,
   origin,
   paypalEnv,
+  itemNumber,
 }: {
   buttonId: string;
   checkoutId: string;
   origin: string;
   paypalEnv?: string;
+  itemNumber?: string;
 }) {
   const host = paypalEnv === "sandbox" ? "https://www.sandbox.paypal.com" : "https://www.paypal.com";
   const url = new URL("/cgi-bin/webscr", host);
@@ -55,6 +57,7 @@ export function buildPayPalHostedButtonUrl({
   url.searchParams.set("hosted_button_id", buttonId);
   url.searchParams.set("custom", checkoutId);
   url.searchParams.set("invoice", checkoutId);
+  if (itemNumber) url.searchParams.set("item_number", itemNumber);
   url.searchParams.set("notify_url", `${origin}/api/paypal/ipn`);
   url.searchParams.set("return", `${origin}/?paypal_hosted=success&checkout=${encodeURIComponent(checkoutId)}`);
   url.searchParams.set("cancel_return", `${origin}/?paypal=cancelled`);
@@ -110,13 +113,28 @@ export async function createPayPalCheckout({
   checkoutId: string;
 }) {
   const settings = await getPayPalSettings();
+  const config = await planConfig(plan, appId);
 
   if (plan === "single") {
     if (!appId) throw new Error("Single report checkout requires an app ID.");
     if (!settings.receiverEmail) {
       throw new Error("PayPal receiver email is required for secure payment verification.");
     }
-    const config = await planConfig(plan, appId);
+    if (settings.singleHostedButtonId) {
+      return {
+        id: settings.singleHostedButtonId,
+        url: buildPayPalHostedButtonUrl({
+          buttonId: settings.singleHostedButtonId,
+          checkoutId,
+          origin,
+          paypalEnv: settings.env,
+          itemNumber: appId,
+        }),
+        expectedAmountCents: config.amount,
+        currency: "USD",
+        accessDays: 30,
+      };
+    }
     return {
       id: `standard:${checkoutId}`,
       url: buildPayPalBuyNowUrl({
@@ -127,6 +145,9 @@ export async function createPayPalCheckout({
         origin,
         paypalEnv: settings.env,
       }),
+      expectedAmountCents: config.amount,
+      currency: "USD",
+      accessDays: 30,
     };
   }
 
@@ -142,6 +163,9 @@ export async function createPayPalCheckout({
         origin,
         paypalEnv: settings.env,
       }),
+      expectedAmountCents: config.amount,
+      currency: "USD",
+      accessDays: null,
     };
   }
 
@@ -170,7 +194,7 @@ export async function createPayPalCheckout({
   const data = (await response.json()) as { id?: string; links?: { href?: string; rel?: string }[]; message?: string };
   const url = approveLink(data.links);
   if (!response.ok || !data.id || !url) throw new Error(data.message || "PayPal subscription could not be created.");
-  return { id: data.id, url };
+  return { id: data.id, url, expectedAmountCents: config.amount, currency: "USD", accessDays: null };
 }
 
 export async function updatePayPalMonthlyPlanPrice(amountCents: number, settingsOverride?: ResolvedPayPalSettings) {

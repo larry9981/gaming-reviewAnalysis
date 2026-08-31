@@ -1,4 +1,4 @@
-import { grantEntitlement, json } from "../../../lib/data";
+import { getCurrentUser, grantEntitlement, json } from "../../../lib/data";
 import { capturePayPalOrder, getPayPalSubscription } from "../../../lib/paypal";
 
 function parseCustomId(value?: string) {
@@ -11,6 +11,9 @@ function parseCustomId(value?: string) {
 }
 
 export async function POST(request: Request) {
+  const user = await getCurrentUser(request);
+  if (!user) return json({ error: "Log in before confirming a PayPal payment." }, 401);
+
   const { orderId, subscriptionId } = (await request.json().catch(() => ({}))) as {
     orderId?: string;
     subscriptionId?: string;
@@ -19,7 +22,7 @@ export async function POST(request: Request) {
     if (orderId) {
       const order = await capturePayPalOrder(orderId);
       const meta = parseCustomId(order.purchase_units?.[0]?.custom_id);
-      if (order.status !== "COMPLETED" || !meta?.userId || meta.plan !== "single") {
+      if (order.status !== "COMPLETED" || meta?.userId !== user.id || meta.plan !== "single") {
         return json({ error: "PayPal order is not complete." }, 409);
       }
       await grantEntitlement({
@@ -35,7 +38,7 @@ export async function POST(request: Request) {
     if (subscriptionId) {
       const subscription = await getPayPalSubscription(subscriptionId);
       const meta = parseCustomId(subscription.custom_id);
-      if (!["ACTIVE", "APPROVAL_PENDING"].includes(subscription.status || "") || !meta?.userId) {
+      if (subscription.status !== "ACTIVE" || meta?.userId !== user.id) {
         return json({ error: "PayPal subscription is not active yet." }, 409);
       }
       await grantEntitlement({

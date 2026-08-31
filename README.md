@@ -122,6 +122,7 @@ Recommended Render setup:
 4. Set the `sync: false` secrets in the Render dashboard:
    - `ADMIN_BOOTSTRAP_PASSWORD` once, to create the initial `jqqbest@gmail.com` administrator (12 characters minimum)
    - `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` only for optional REST API fallback flows
+   - `PAYPAL_SINGLE_HOSTED_BUTTON_ID` for the protected one-time Buy Now button
    - `PAYPAL_MONTHLY_HOSTED_BUTTON_ID` for a legacy `_s-xclick` Subscribe button
    - `PAYPAL_RECEIVER_EMAIL`, which must match the primary PayPal business email returned by IPN
    - `PAYPAL_MONTHLY_PLAN_ID` only when using the newer REST Subscriptions API (`P-...`)
@@ -144,8 +145,9 @@ WorldFirst checkout uses the official Cashier Payment redirect flow: the server 
 RSA256, the browser redirects to WorldFirst checkout, and the app verifies the payment before granting access. Store
 WorldFirst credentials only in deployment environment variables or the admin-only payment settings page.
 Plan prices are stored with the payment settings and are used by the public pricing UI and checkout APIs. When changing
-the recurring price for a configured PayPal Billing Plan, the administrator must explicitly confirm synchronization;
-PayPal then applies its notification and price-change timing rules to existing subscribers.
+the price for a Hosted Button, update that button in PayPal first and confirm the matching change in the administrator
+dashboard. When changing the recurring price for a configured PayPal Billing Plan, the administrator must explicitly
+confirm synchronization; PayPal then applies its notification and price-change timing rules to existing subscribers.
 
 ## Learn More
 

@@ -20,9 +20,19 @@ export async function POST(request: Request) {
     });
     await getD1()
       .prepare(
-        "INSERT INTO checkout_sessions (id, user_id, plan, app_id, provider, provider_session_id, status, created_at) VALUES (?, ?, ?, ?, 'paypal', ?, 'created', ?)",
+        "INSERT INTO checkout_sessions (id, user_id, plan, app_id, provider, provider_session_id, status, expected_amount_cents, currency, access_days, created_at) VALUES (?, ?, ?, ?, 'paypal', ?, 'created', ?, ?, ?, ?)",
       )
-      .bind(checkoutId, user.id, plan, appId || null, checkout.id, Date.now())
+      .bind(
+        checkoutId,
+        user.id,
+        plan,
+        appId || null,
+        checkout.id,
+        checkout.expectedAmountCents,
+        checkout.currency,
+        checkout.accessDays,
+        Date.now(),
+      )
       .run();
     return json({ checkoutUrl: checkout.url, checkoutId });
   } catch (error) {
