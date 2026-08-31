@@ -70,6 +70,15 @@ CREATE TABLE IF NOT EXISTS payment_settings (
   updated_by TEXT
 );
 
+CREATE TABLE IF NOT EXISTS payment_events (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  provider_event_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at BIGINT NOT NULL
+);
+
 ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;
 
 CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
@@ -77,5 +86,7 @@ CREATE INDEX IF NOT EXISTS entitlements_user_idx ON entitlements (user_id);
 CREATE INDEX IF NOT EXISTS checkout_user_idx ON checkout_sessions (user_id);
 CREATE INDEX IF NOT EXISTS checkout_provider_idx ON checkout_sessions (provider_session_id);
 CREATE INDEX IF NOT EXISTS password_resets_user_idx ON password_resets (user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS entitlements_provider_ref_idx ON entitlements (provider_ref);
+CREATE UNIQUE INDEX IF NOT EXISTS payment_events_provider_idx ON payment_events (provider, provider_event_id, event_type, status);
 
 COMMIT;

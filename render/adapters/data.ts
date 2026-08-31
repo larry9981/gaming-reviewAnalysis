@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { Pool, type PoolClient } from "pg";
 
 export type AuthUser = {
   id: string;
@@ -91,6 +91,11 @@ class BoundStatement {
     const result = await getPool().query(normalizeSql(this.sql), this.params);
     return { meta: { changes: result.rowCount || 0 } };
   }
+
+  async runWith(client: PoolClient): Promise<QueryResult> {
+    const result = await client.query(normalizeSql(this.sql), this.params);
+    return { meta: { changes: result.rowCount || 0 } };
+  }
 }
 
 class PreparedStatement {
@@ -119,8 +124,18 @@ export function getD1() {
       return new PreparedStatement(sql);
     },
     async batch(statements: BoundStatement[]) {
-      for (const statement of statements) {
-        await statement.run();
+      const client = await getPool().connect();
+      try {
+        await client.query("BEGIN");
+        for (const statement of statements) {
+          await statement.runWith(client);
+        }
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
       }
     },
   };
@@ -192,11 +207,21 @@ export async function ensureSchema() {
         updated_at BIGINT NOT NULL,
         updated_by TEXT
       );
+      CREATE TABLE IF NOT EXISTS payment_events (
+        id TEXT PRIMARY KEY,
+        provider TEXT NOT NULL,
+        provider_event_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at BIGINT NOT NULL
+      );
       CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
       CREATE INDEX IF NOT EXISTS entitlements_user_idx ON entitlements (user_id);
       CREATE INDEX IF NOT EXISTS checkout_user_idx ON checkout_sessions (user_id);
       CREATE INDEX IF NOT EXISTS checkout_provider_idx ON checkout_sessions (provider_session_id);
       CREATE INDEX IF NOT EXISTS password_resets_user_idx ON password_resets (user_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS entitlements_provider_ref_idx ON entitlements (provider_ref);
+      CREATE UNIQUE INDEX IF NOT EXISTS payment_events_provider_idx ON payment_events (provider, provider_event_id, event_type, status);
     `);
   })();
   await schemaReady;

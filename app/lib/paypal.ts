@@ -38,18 +38,62 @@ function approveLink(links?: { href?: string; rel?: string }[]) {
   return links?.find((link) => link.rel === "approve")?.href;
 }
 
+export function buildPayPalHostedButtonUrl({
+  buttonId,
+  checkoutId,
+  origin,
+  paypalEnv,
+}: {
+  buttonId: string;
+  checkoutId: string;
+  origin: string;
+  paypalEnv?: string;
+}) {
+  const host = paypalEnv === "sandbox" ? "https://www.sandbox.paypal.com" : "https://www.paypal.com";
+  const url = new URL("/cgi-bin/webscr", host);
+  url.searchParams.set("cmd", "_s-xclick");
+  url.searchParams.set("hosted_button_id", buttonId);
+  url.searchParams.set("custom", checkoutId);
+  url.searchParams.set("invoice", checkoutId);
+  url.searchParams.set("notify_url", `${origin}/api/paypal/ipn`);
+  url.searchParams.set("return", `${origin}/?paypal_hosted=success&checkout=${encodeURIComponent(checkoutId)}`);
+  url.searchParams.set("cancel_return", `${origin}/?paypal=cancelled`);
+  url.searchParams.set("rm", "1");
+  url.searchParams.set("no_shipping", "1");
+  return url.toString();
+}
+
 export async function createPayPalCheckout({
   plan,
   appId,
   userId,
   origin,
+  checkoutId,
 }: {
   plan: PayPalPlan;
   appId?: string;
   userId: string;
   origin: string;
+  checkoutId: string;
 }) {
-  const { accessToken, settings } = await paypalAccessToken();
+  const settings = await getPayPalSettings();
+
+  if (plan === "monthly" && settings.monthlyHostedButtonId) {
+    if (!settings.receiverEmail) {
+      throw new Error("PayPal receiver email is required for secure Hosted Button verification.");
+    }
+    return {
+      id: settings.monthlyHostedButtonId,
+      url: buildPayPalHostedButtonUrl({
+        buttonId: settings.monthlyHostedButtonId,
+        checkoutId,
+        origin,
+        paypalEnv: settings.env,
+      }),
+    };
+  }
+
+  const { accessToken } = await paypalAccessToken(settings);
 
   if (plan === "single") {
     const config = await planConfig(plan, appId);
@@ -88,7 +132,7 @@ export async function createPayPalCheckout({
   }
 
   if (!settings.monthlyPlanId) {
-    throw new Error("PayPal monthly subscription requires PAYPAL_MONTHLY_PLAN_ID.");
+    throw new Error("PayPal monthly subscription requires a Hosted Button ID or PAYPAL_MONTHLY_PLAN_ID.");
   }
   const response = await fetch(`${paypalBaseUrl(settings.env)}/v1/billing/subscriptions`, {
     method: "POST",

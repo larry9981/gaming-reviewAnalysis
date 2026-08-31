@@ -48,8 +48,20 @@ export async function POST(request: Request) {
         clientId: clean(body.paypal.clientId) || currentPayPal.clientId,
         clientSecret: keepSecret(clean(body.paypal.clientSecret), currentPayPal.clientSecret),
         monthlyPlanId: clean(body.paypal.monthlyPlanId) || currentPayPal.monthlyPlanId,
+        monthlyHostedButtonId: clean(body.paypal.monthlyHostedButtonId) || currentPayPal.monthlyHostedButtonId,
+        receiverEmail: (clean(body.paypal.receiverEmail) || currentPayPal.receiverEmail || "").toLowerCase(),
       }
     : currentPayPal;
+
+  if (nextPayPal.monthlyPlanId && !/^P-[A-Z0-9]+$/i.test(nextPayPal.monthlyPlanId)) {
+    return json({ error: "PayPal REST Plan ID must start with P-. Use Hosted Button ID for an _s-xclick button." }, 400);
+  }
+  if (nextPayPal.monthlyHostedButtonId && !/^[A-Z0-9]{8,32}$/i.test(nextPayPal.monthlyHostedButtonId)) {
+    return json({ error: "Enter a valid PayPal Hosted Button ID." }, 400);
+  }
+  if (nextPayPal.monthlyHostedButtonId && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nextPayPal.receiverEmail || "")) {
+    return json({ error: "PayPal receiver email is required to securely verify Hosted Button payments." }, 400);
+  }
 
   let nextSingleAmount = currentPricing.singleAmountCents;
   let nextMonthlyAmount = currentPricing.monthlyAmountCents;

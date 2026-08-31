@@ -37,8 +37,12 @@ services:
         sync: false
       - key: PAYPAL_CLIENT_SECRET
         sync: false
-      - key: PAYPAL_MONTHLY_PLAN_ID
+      - key: PAYPAL_MONTHLY_HOSTED_BUTTON_ID
         value: MKHKXQTQPB8MU
+      - key: PAYPAL_RECEIVER_EMAIL
+        value: jqqbest@gmail.com
+      - key: PAYPAL_MONTHLY_PLAN_ID
+        sync: false
       - key: WORLDFIRST_ENV
         value: prod
       - key: WORLDFIRST_CLIENT_ID

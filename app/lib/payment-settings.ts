@@ -6,6 +6,8 @@ export type PayPalSettings = {
   clientId?: string;
   clientSecret?: string;
   monthlyPlanId?: string;
+  monthlyHostedButtonId?: string;
+  receiverEmail?: string;
 };
 
 export type AirwallexSettings = {
@@ -51,7 +53,15 @@ function parsePayload<T>(payload?: string | null): Partial<T> {
 
 type PaymentProvider = "paypal" | "airwallex" | "worldfirst" | "pricing";
 
-const DEFAULT_PAYPAL_MONTHLY_PLAN_ID = "MKHKXQTQPB8MU";
+const DEFAULT_PAYPAL_MONTHLY_HOSTED_BUTTON_ID = "MKHKXQTQPB8MU";
+
+function isPayPalPlanId(value?: string) {
+  return /^P-[A-Z0-9]+$/i.test(value || "");
+}
+
+function firstEmail(value?: string) {
+  return (value || "").split(",")[0]?.trim().toLowerCase() || "";
+}
 
 async function readProvider<T>(provider: PaymentProvider) {
   await ensureSchema();
@@ -64,11 +74,18 @@ async function readProvider<T>(provider: PaymentProvider) {
 
 export async function getPayPalSettings(): Promise<Required<Pick<PayPalSettings, "env">> & PayPalSettings> {
   const stored: Partial<PayPalSettings> = await readProvider<PayPalSettings>("paypal").catch(() => ({}));
+  const legacyMonthlyId = stored.monthlyPlanId || env.PAYPAL_MONTHLY_PLAN_ID || "";
   return {
     env: stored.env || env.PAYPAL_ENV || "live",
     clientId: stored.clientId || env.PAYPAL_CLIENT_ID || "",
     clientSecret: stored.clientSecret || env.PAYPAL_CLIENT_SECRET || "",
-    monthlyPlanId: stored.monthlyPlanId || env.PAYPAL_MONTHLY_PLAN_ID || DEFAULT_PAYPAL_MONTHLY_PLAN_ID,
+    monthlyPlanId: isPayPalPlanId(legacyMonthlyId) ? legacyMonthlyId : "",
+    monthlyHostedButtonId:
+      stored.monthlyHostedButtonId ||
+      env.PAYPAL_MONTHLY_HOSTED_BUTTON_ID ||
+      (!isPayPalPlanId(legacyMonthlyId) ? legacyMonthlyId : "") ||
+      DEFAULT_PAYPAL_MONTHLY_HOSTED_BUTTON_ID,
+    receiverEmail: (stored.receiverEmail || env.PAYPAL_RECEIVER_EMAIL || firstEmail(env.ADMIN_EMAILS)).toLowerCase(),
   };
 }
 
@@ -162,6 +179,8 @@ export async function getMaskedPaymentSettings() {
       clientId: mask(paypal.clientId),
       clientSecret: mask(paypal.clientSecret),
       monthlyPlanId: mask(paypal.monthlyPlanId),
+      monthlyHostedButtonId: mask(paypal.monthlyHostedButtonId),
+      receiverEmail: paypal.receiverEmail || "",
     },
     airwallex: {
       env: airwallex.env,

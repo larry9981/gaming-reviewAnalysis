@@ -123,7 +123,9 @@ Recommended Render setup:
    - `ADMIN_BOOTSTRAP_PASSWORD` once, to create the initial `jqqbest@gmail.com` administrator (12 characters minimum)
    - `PAYPAL_CLIENT_ID`
    - `PAYPAL_CLIENT_SECRET`
-   - `PAYPAL_MONTHLY_PLAN_ID`
+   - `PAYPAL_MONTHLY_HOSTED_BUTTON_ID` for a legacy `_s-xclick` Subscribe button
+   - `PAYPAL_RECEIVER_EMAIL`, which must match the primary PayPal business email returned by IPN
+   - `PAYPAL_MONTHLY_PLAN_ID` only when using the newer REST Subscriptions API (`P-...`)
    - `WORLDFIRST_ENV` (`prod`, `test`, or `sandbox`)
    - `WORLDFIRST_CLIENT_ID`
    - `WORLDFIRST_PRIVATE_KEY`

@@ -140,6 +140,8 @@ type AdminPaymentSettings = {
     clientId: MaskedSecret;
     clientSecret: MaskedSecret;
     monthlyPlanId: MaskedSecret;
+    monthlyHostedButtonId: MaskedSecret;
+    receiverEmail: string;
   };
   airwallex: {
     env: string;
@@ -345,6 +347,24 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     }
   }
 
+  async function verifyHostedPayPal(checkoutId: string) {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const response = await fetch(`/api/paypal/hosted-status?checkout=${encodeURIComponent(checkoutId)}`);
+      const data = await response.json().catch(() => ({ error: "PayPal status is unavailable." }));
+      if (response.ok && data.paid) {
+        setMessage("PayPal subscription payment confirmed. Your full reports are unlocked.");
+        await loadMe();
+        return;
+      }
+      if (!response.ok) {
+        setMessage(data.error || "PayPal status is unavailable.");
+        return;
+      }
+      if (attempt < 3) await new Promise((resolve) => window.setTimeout(resolve, 1500));
+    }
+    setMessage("PayPal is processing the subscription. Access will unlock automatically after payment confirmation.");
+  }
+
   async function verifyWorldFirst(paymentRequestId: string) {
     const response = await fetch("/api/worldfirst/verify", {
       method: "POST",
@@ -376,6 +396,11 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
     }
     if (params.get("paypal") === "success" || params.get("paypal_subscription") === "success") {
       verifyPayPal(params);
+      window.history.replaceState({}, "", "/");
+    }
+    const hostedCheckoutId = params.get("checkout");
+    if (params.get("paypal_hosted") === "success" && hostedCheckoutId) {
+      verifyHostedPayPal(hostedCheckoutId);
       window.history.replaceState({}, "", "/");
     }
     if (params.get("paypal") === "cancelled") {
@@ -684,6 +709,8 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
             clientId: form.get("paypalClientId"),
             clientSecret: form.get("paypalClientSecret"),
             monthlyPlanId: form.get("paypalMonthlyPlanId"),
+            monthlyHostedButtonId: form.get("paypalMonthlyHostedButtonId"),
+            receiverEmail: form.get("paypalReceiverEmail"),
           },
           airwallex: {
             env: form.get("airwallexEnv"),
@@ -1317,9 +1344,26 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                       <input name="paypalClientSecret" type="password" placeholder={paymentSettings?.paypal.clientSecret.configured ? "********" : "PayPal client secret"} />
                     </label>
                     <label>
-                      Monthly Plan ID
-                      <input name="paypalMonthlyPlanId" placeholder={paymentSettings?.paypal.monthlyPlanId.preview || "PayPal subscription plan ID"} />
+                      Monthly Hosted Button ID
+                      <input
+                        name="paypalMonthlyHostedButtonId"
+                        placeholder={paymentSettings?.paypal.monthlyHostedButtonId.preview || "PayPal hosted_button_id"}
+                      />
                     </label>
+                    <label>
+                      PayPal receiver email
+                      <input
+                        name="paypalReceiverEmail"
+                        type="email"
+                        defaultValue={paymentSettings?.paypal.receiverEmail || ""}
+                        placeholder="Primary PayPal business email"
+                      />
+                    </label>
+                    <label>
+                      REST Billing Plan ID (optional)
+                      <input name="paypalMonthlyPlanId" placeholder={paymentSettings?.paypal.monthlyPlanId.preview || "P-..."} />
+                    </label>
+                    <p className="admin-note">Hosted Button subscriptions use PayPal IPN. The receiver email must match the primary PayPal business email.</p>
                   </article>
                   <article>
                     <h3>Credit card / WorldFirst</h3>

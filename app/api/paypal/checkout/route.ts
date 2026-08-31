@@ -10,19 +10,21 @@ export async function POST(request: Request) {
   if (plan === "single" && !appId) return json({ error: "Single report checkout requires an app ID." }, 400);
 
   try {
+    const checkoutId = randomId("chk");
     const checkout = await createPayPalCheckout({
       plan,
       appId,
       userId: user.id,
       origin: new URL(request.url).origin,
+      checkoutId,
     });
     await getD1()
       .prepare(
         "INSERT INTO checkout_sessions (id, user_id, plan, app_id, provider, provider_session_id, status, created_at) VALUES (?, ?, ?, ?, 'paypal', ?, 'created', ?)",
       )
-      .bind(randomId("chk"), user.id, plan, appId || null, checkout.id, Date.now())
+      .bind(checkoutId, user.id, plan, appId || null, checkout.id, Date.now())
       .run();
-    return json({ checkoutUrl: checkout.url });
+    return json({ checkoutUrl: checkout.url, checkoutId });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "PayPal checkout failed." }, 502);
   }
