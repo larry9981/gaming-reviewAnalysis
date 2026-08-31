@@ -23,8 +23,8 @@ export default function SecurityPage() {
           policy, and trusted-domain redirects to reduce phishing, clickjacking, content injection, and downgrade risks.
         </p>
         <p>
-          Payments are handled through PayPal or supported checkout providers. Steam Guardrail does not ask users to
-          type full card numbers into a custom form on our own pages.
+          Payments are handled through PayPal. Steam Guardrail does not ask users to enter PayPal credentials or
+          payment details into a custom form on our own pages.
         </p>
         <p>
           To report a suspicious domain, phishing page, or security issue, contact jqqbest@gmail.com and include the

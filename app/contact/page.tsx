@@ -18,8 +18,8 @@ export default function ContactPage() {
           your account email and the Steam game report involved so support can review the request.
         </p>
         <p>
-          For urgent payment issues, also keep your PayPal or card checkout receipt available. Steam Guardrail cannot
-          process Steam refunds or publisher support requests.
+          For urgent payment issues, also keep your PayPal receipt available. Steam Guardrail cannot process Steam
+          refunds or publisher support requests.
         </p>
       </section>
     </main>

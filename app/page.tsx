@@ -1836,39 +1836,15 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               </button>
             </div>
             <p className="modal-copy">
-              Choose how you want to pay. PayPal is selected by default; card payments are securely processed by WorldFirst checkout.
+              Payments are securely processed by PayPal. Steam Guardrail never stores your PayPal credentials or payment details.
             </p>
             {message ? <div className="error-box neutral modal-message">{message}</div> : null}
-            <div className="payment-methods" role="radiogroup" aria-label="Payment method">
-              <button
-                type="button"
-                className={checkoutDialog.provider === "paypal" ? "active" : ""}
-                onClick={() => setCheckoutDialog({ ...checkoutDialog, provider: "paypal" })}
-                role="radio"
-                aria-checked={checkoutDialog.provider === "paypal"}
-              >
+            <div className="payment-methods" aria-label="Payment method">
+              <div className="payment-method active">
                 <strong>PayPal</strong>
-                <span>Default · Pay with PayPal balance or PayPal-supported cards</span>
-              </button>
-              <button
-                type="button"
-                className={checkoutDialog.provider === "worldfirst" ? "active" : ""}
-                onClick={() => setCheckoutDialog({ ...checkoutDialog, provider: "worldfirst" })}
-                role="radio"
-                aria-checked={checkoutDialog.provider === "worldfirst"}
-              >
-                <strong>Credit card</strong>
-                <span>Visa / Mastercard through WorldFirst checkout</span>
-              </button>
-            </div>
-            {checkoutDialog.provider === "worldfirst" ? (
-              <div className="card-entry-form">
-                <p className="secure-note">
-                  You will be redirected to WorldFirst secure checkout to enter card details. Steam Guardrail never stores card numbers,
-                  expiry dates, or CVC codes.
-                </p>
+                <span>Pay with your PayPal account</span>
               </div>
-            ) : null}
+            </div>
             <div className="modal-summary">
               <div>
                 <span>Plan</span>
@@ -1876,11 +1852,11 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
               </div>
               <div>
                 <span>Provider</span>
-                <strong>{checkoutDialog.provider === "paypal" ? "PayPal" : "WorldFirst card"}</strong>
+                <strong>PayPal</strong>
               </div>
             </div>
             <button type="button" className="primary-action modal-pay-button" onClick={continueCheckout} disabled={checkoutBusy !== null}>
-              {checkoutBusy ? "Opening secure checkout..." : checkoutDialog.provider === "paypal" ? "Continue with PayPal" : "Continue with credit card"}
+              {checkoutBusy ? "Opening secure checkout..." : "Continue with PayPal"}
             </button>
           </section>
         </div>

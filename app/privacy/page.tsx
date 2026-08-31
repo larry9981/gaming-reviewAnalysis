@@ -18,8 +18,8 @@ export default function PrivacyPage() {
           entitlement status so users can access purchased reports and subscriptions.
         </p>
         <p>
-          Payment details are processed by third-party payment providers such as PayPal and card checkout providers. We
-          do not ask users to enter full card numbers directly on Steam Guardrail pages.
+          Payment details are processed by PayPal. We do not ask users to enter PayPal credentials or payment details
+          directly on Steam Guardrail pages.
         </p>
         <p>
           Public social and store data may be summarized for reports. Users can contact support to ask about account
