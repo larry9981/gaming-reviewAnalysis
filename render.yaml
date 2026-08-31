@@ -40,7 +40,7 @@ services:
       - key: PAYPAL_MONTHLY_HOSTED_BUTTON_ID
         value: MKHKXQTQPB8MU
       - key: PAYPAL_RECEIVER_EMAIL
-        value: jqqbest@gmail.com
+        value: 314104801@qq.com
       - key: PAYPAL_MONTHLY_PLAN_ID
         sync: false
       - key: WORLDFIRST_ENV

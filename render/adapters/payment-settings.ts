@@ -37,13 +37,16 @@ export type PricingSettings = {
 type PaymentProvider = "paypal" | "airwallex" | "worldfirst" | "pricing";
 
 const DEFAULT_PAYPAL_MONTHLY_HOSTED_BUTTON_ID = "MKHKXQTQPB8MU";
+const DEFAULT_PAYPAL_RECEIVER_EMAIL = "314104801@qq.com";
+const LEGACY_PAYPAL_RECEIVER_EMAIL = "jqqbest@gmail.com";
 
 function isPayPalPlanId(value?: string) {
   return /^P-[A-Z0-9]+$/i.test(value || "");
 }
 
-function firstEmail(value?: string) {
-  return (value || "").split(",")[0]?.trim().toLowerCase() || "";
+function paypalReceiverEmail(stored?: string, configured?: string) {
+  const email = (stored || configured || DEFAULT_PAYPAL_RECEIVER_EMAIL).trim().toLowerCase();
+  return email === LEGACY_PAYPAL_RECEIVER_EMAIL ? DEFAULT_PAYPAL_RECEIVER_EMAIL : email;
 }
 
 function parsePayload<T>(payload?: string | null): Partial<T> {
@@ -77,11 +80,7 @@ export async function getPayPalSettings(): Promise<Required<Pick<PayPalSettings,
       process.env.PAYPAL_MONTHLY_HOSTED_BUTTON_ID ||
       (!isPayPalPlanId(legacyMonthlyId) ? legacyMonthlyId : "") ||
       DEFAULT_PAYPAL_MONTHLY_HOSTED_BUTTON_ID,
-    receiverEmail: (
-      stored.receiverEmail ||
-      process.env.PAYPAL_RECEIVER_EMAIL ||
-      firstEmail(process.env.ADMIN_EMAILS)
-    ).toLowerCase(),
+    receiverEmail: paypalReceiverEmail(stored.receiverEmail, process.env.PAYPAL_RECEIVER_EMAIL),
   };
 }
 
