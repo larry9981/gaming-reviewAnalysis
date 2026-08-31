@@ -63,6 +63,39 @@ export function buildPayPalHostedButtonUrl({
   return url.toString();
 }
 
+export function buildPayPalBuyNowUrl({
+  receiverEmail,
+  checkoutId,
+  appId,
+  amountCents,
+  origin,
+  paypalEnv,
+}: {
+  receiverEmail: string;
+  checkoutId: string;
+  appId: string;
+  amountCents: number;
+  origin: string;
+  paypalEnv?: string;
+}) {
+  const host = paypalEnv === "sandbox" ? "https://www.sandbox.paypal.com" : "https://www.paypal.com";
+  const url = new URL("/cgi-bin/webscr", host);
+  url.searchParams.set("cmd", "_xclick");
+  url.searchParams.set("business", receiverEmail);
+  url.searchParams.set("item_name", `Steam Guardrail full report ${appId}`);
+  url.searchParams.set("item_number", appId);
+  url.searchParams.set("amount", (amountCents / 100).toFixed(2));
+  url.searchParams.set("currency_code", "USD");
+  url.searchParams.set("custom", checkoutId);
+  url.searchParams.set("invoice", checkoutId);
+  url.searchParams.set("notify_url", `${origin}/api/paypal/ipn`);
+  url.searchParams.set("return", `${origin}/?paypal_hosted=success&checkout=${encodeURIComponent(checkoutId)}`);
+  url.searchParams.set("cancel_return", `${origin}/?paypal=cancelled`);
+  url.searchParams.set("rm", "1");
+  url.searchParams.set("no_shipping", "1");
+  return url.toString();
+}
+
 export async function createPayPalCheckout({
   plan,
   appId,
@@ -77,6 +110,25 @@ export async function createPayPalCheckout({
   checkoutId: string;
 }) {
   const settings = await getPayPalSettings();
+
+  if (plan === "single") {
+    if (!appId) throw new Error("Single report checkout requires an app ID.");
+    if (!settings.receiverEmail) {
+      throw new Error("PayPal receiver email is required for secure payment verification.");
+    }
+    const config = await planConfig(plan, appId);
+    return {
+      id: `standard:${checkoutId}`,
+      url: buildPayPalBuyNowUrl({
+        receiverEmail: settings.receiverEmail,
+        checkoutId,
+        appId,
+        amountCents: config.amount,
+        origin,
+        paypalEnv: settings.env,
+      }),
+    };
+  }
 
   if (plan === "monthly" && settings.monthlyHostedButtonId) {
     if (!settings.receiverEmail) {
@@ -94,42 +146,6 @@ export async function createPayPalCheckout({
   }
 
   const { accessToken } = await paypalAccessToken(settings);
-
-  if (plan === "single") {
-    const config = await planConfig(plan, appId);
-    const response = await fetch(`${paypalBaseUrl(settings.env)}/v2/checkout/orders`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        intent: "CAPTURE",
-        purchase_units: [
-          {
-            custom_id: JSON.stringify({ userId, plan, appId }),
-            description: `Steam Guardrail full report ${appId || ""}`.trim(),
-            amount: {
-              currency_code: "USD",
-              value: (config.amount / 100).toFixed(2),
-            },
-          },
-        ],
-        payment_source: {
-          paypal: {
-            experience_context: {
-              return_url: `${origin}/?paypal=success`,
-              cancel_url: `${origin}/?paypal=cancelled`,
-            },
-          },
-        },
-      }),
-    });
-    const data = (await response.json()) as { id?: string; links?: { href?: string; rel?: string }[]; message?: string };
-    const url = approveLink(data.links);
-    if (!response.ok || !data.id || !url) throw new Error(data.message || "PayPal order could not be created.");
-    return { id: data.id, url };
-  }
 
   if (!settings.monthlyPlanId) {
     throw new Error("PayPal monthly subscription requires a Hosted Button ID or PAYPAL_MONTHLY_PLAN_ID.");

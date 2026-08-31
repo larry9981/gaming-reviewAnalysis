@@ -23,6 +23,81 @@ async function verifyIpn(rawBody: string, paypalEnv?: string) {
   return response.ok && (await response.text()).trim() === "VERIFIED";
 }
 
+type PayPalCheckout = {
+  userId: string;
+  plan: string;
+  appId?: string | null;
+};
+
+async function handleSinglePayment(params: URLSearchParams, checkoutId: string, checkout: PayPalCheckout) {
+  if (!checkout.appId) return;
+
+  const paymentStatus = params.get("payment_status") || "";
+  if (["Refunded", "Reversed"].includes(paymentStatus)) {
+    const originalTransactionId = params.get("parent_txn_id") || params.get("txn_id") || "";
+    if (originalTransactionId) {
+      await getD1()
+        .prepare("UPDATE entitlements SET status = 'cancelled', current_period_end = ? WHERE provider_ref = ?")
+        .bind(Date.now(), originalTransactionId)
+        .run();
+    }
+    return;
+  }
+
+  const eventType = params.get("txn_type") || "";
+  if (eventType !== "web_accept" || paymentStatus !== "Completed") return;
+
+  const pricing = await getPricingSettings();
+  const paidCents = Math.round(Number(params.get("mc_gross") || "") * 100);
+  const quantity = params.get("quantity") || "1";
+  if (
+    params.get("mc_currency") !== "USD" ||
+    paidCents !== pricing.singleAmountCents ||
+    quantity !== "1" ||
+    params.get("invoice") !== checkoutId ||
+    params.get("item_number") !== checkout.appId
+  ) {
+    return;
+  }
+
+  const transactionId = params.get("txn_id") || "";
+  if (!transactionId) return;
+  const existingEvent = await getD1()
+    .prepare(
+      "SELECT id FROM payment_events WHERE provider = 'paypal-ipn' AND provider_event_id = ? AND event_type = ? AND status = ? LIMIT 1",
+    )
+    .bind(transactionId, eventType, paymentStatus)
+    .first<{ id: string }>();
+  if (existingEvent) return;
+
+  const now = Date.now();
+  try {
+    await getD1().batch([
+      getD1()
+        .prepare(
+          "INSERT INTO payment_events (id, provider, provider_event_id, event_type, status, created_at) VALUES (?, 'paypal-ipn', ?, ?, ?, ?)",
+        )
+        .bind(randomId("evt"), transactionId, eventType, paymentStatus, now),
+      getD1()
+        .prepare(
+          "INSERT INTO entitlements (id, user_id, kind, app_id, status, provider, provider_ref, current_period_end, created_at) VALUES (?, ?, 'single', ?, 'active', 'paypal', ?, ?, ?)",
+        )
+        .bind(randomId("ent"), checkout.userId, checkout.appId, transactionId, now + MONTH_MS, now),
+      getD1()
+        .prepare("UPDATE checkout_sessions SET provider_session_id = ?, status = 'paid' WHERE id = ?")
+        .bind(transactionId, checkoutId),
+    ]);
+  } catch (error) {
+    const duplicate = await getD1()
+      .prepare(
+        "SELECT id FROM payment_events WHERE provider = 'paypal-ipn' AND provider_event_id = ? AND event_type = ? AND status = ? LIMIT 1",
+      )
+      .bind(transactionId, eventType, paymentStatus)
+      .first<{ id: string }>();
+    if (!duplicate) throw error;
+  }
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text();
   if (!rawBody) return empty();
@@ -45,10 +120,20 @@ export async function POST(request: Request) {
     .map((value) => value!.trim().toLowerCase());
   if (!expectedReceiver || !receivers.includes(expectedReceiver)) return empty();
 
+  const paymentStatus = params.get("payment_status") || "";
+  const parentTransactionId = params.get("parent_txn_id") || "";
+  if (["Refunded", "Reversed"].includes(paymentStatus) && parentTransactionId) {
+    await ensureSchema();
+    await getD1()
+      .prepare("UPDATE entitlements SET status = 'cancelled', current_period_end = ? WHERE provider_ref = ?")
+      .bind(Date.now(), parentTransactionId)
+      .run();
+    return empty();
+  }
+
   const checkoutId = params.get("custom") || "";
-  const subscriptionId = params.get("subscr_id") || "";
   const eventType = params.get("txn_type") || "";
-  if (!checkoutId || !subscriptionId) return empty();
+  if (!checkoutId) return empty();
 
   await ensureSchema();
   const checkout = await getD1()
@@ -56,8 +141,17 @@ export async function POST(request: Request) {
       "SELECT user_id as userId, plan, app_id as appId FROM checkout_sessions WHERE id = ? AND provider = 'paypal' LIMIT 1",
     )
     .bind(checkoutId)
-    .first<{ userId: string; plan: string; appId?: string | null }>();
-  if (!checkout || checkout.plan !== "monthly") return empty();
+    .first<PayPalCheckout>();
+  if (!checkout) return empty();
+
+  if (checkout.plan === "single") {
+    await handleSinglePayment(params, checkoutId, checkout);
+    return empty();
+  }
+  if (checkout.plan !== "monthly") return empty();
+
+  const subscriptionId = params.get("subscr_id") || "";
+  if (!subscriptionId) return empty();
 
   if (["subscr_cancel", "subscr_eot"].includes(eventType)) {
     await getD1().batch([
@@ -80,7 +174,6 @@ export async function POST(request: Request) {
   }
 
   if (eventType !== "subscr_payment") return empty();
-  const paymentStatus = params.get("payment_status") || "";
   if (["Refunded", "Reversed"].includes(paymentStatus)) {
     await getD1()
       .prepare("UPDATE entitlements SET status = 'cancelled', current_period_end = ? WHERE provider_ref = ?")

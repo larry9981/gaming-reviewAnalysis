@@ -37,9 +37,23 @@ test("public pricing and checkout use the stored amounts", async () => {
   assert.match(payments, /amount: pricing\.singleAmountCents/);
   assert.match(payments, /amount: pricing\.monthlyAmountCents/);
   assert.match(paypal, /await planConfig\(plan, appId\)/);
-  assert.match(paypal, /config\.amount \/ 100/);
+  assert.match(paypal, /buildPayPalBuyNowUrl/);
+  assert.match(paypal, /url\.searchParams\.set\("cmd", "_xclick"\)/);
+  assert.match(paypal, /amountCents \/ 100/);
   assert.match(worldfirst, /await planConfig\(plan, appId\)/);
   assert.match(analyze, /getPricingSettings/);
+});
+
+test("PayPal Standard payments require a verified, exact IPN match", async () => {
+  const ipn = await source("app/api/paypal/ipn/route.ts");
+
+  assert.match(ipn, /eventType !== "web_accept"/);
+  assert.match(ipn, /paymentStatus !== "Completed"/);
+  assert.match(ipn, /paidCents !== pricing\.singleAmountCents/);
+  assert.match(ipn, /params\.get\("invoice"\) !== checkoutId/);
+  assert.match(ipn, /params\.get\("item_number"\) !== checkout\.appId/);
+  assert.match(ipn, /params\.get\("parent_txn_id"\)/);
+  assert.match(ipn, /provider = 'paypal-ipn'/);
 });
 
 test("Render includes persistent payment settings", async () => {

@@ -352,7 +352,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       const response = await fetch(`/api/paypal/hosted-status?checkout=${encodeURIComponent(checkoutId)}`);
       const data = await response.json().catch(() => ({ error: "PayPal status is unavailable." }));
       if (response.ok && data.paid) {
-        setMessage("PayPal subscription payment confirmed. Your full reports are unlocked.");
+        setMessage("PayPal payment confirmed. Your full reports are unlocked.");
         await loadMe();
         return;
       }
@@ -362,7 +362,7 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
       }
       if (attempt < 3) await new Promise((resolve) => window.setTimeout(resolve, 1500));
     }
-    setMessage("PayPal is processing the subscription. Access will unlock automatically after payment confirmation.");
+    setMessage("PayPal is processing the payment. Access will unlock automatically after payment confirmation.");
   }
 
   async function verifyWorldFirst(paymentRequestId: string) {
@@ -1336,12 +1336,12 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                       </select>
                     </label>
                     <label>
-                      Client ID
-                      <input name="paypalClientId" placeholder={paymentSettings?.paypal.clientId.preview || "PayPal client ID"} />
+                      Client ID (optional REST fallback)
+                      <input name="paypalClientId" placeholder={paymentSettings?.paypal.clientId.preview || "Optional PayPal client ID"} />
                     </label>
                     <label>
-                      Client Secret
-                      <input name="paypalClientSecret" type="password" placeholder={paymentSettings?.paypal.clientSecret.configured ? "********" : "PayPal client secret"} />
+                      Client Secret (optional REST fallback)
+                      <input name="paypalClientSecret" type="password" placeholder={paymentSettings?.paypal.clientSecret.configured ? "********" : "Optional PayPal client secret"} />
                     </label>
                     <label>
                       Monthly Hosted Button ID
@@ -1363,7 +1363,9 @@ export function SteamGuardrailApp({ page = "home" }: { page?: SitePage }) {
                       REST Billing Plan ID (optional)
                       <input name="paypalMonthlyPlanId" placeholder={paymentSettings?.paypal.monthlyPlanId.preview || "P-..."} />
                     </label>
-                    <p className="admin-note">Hosted Button subscriptions use PayPal IPN. The receiver email must match the primary PayPal business email.</p>
+                    <p className="admin-note">
+                      Buy Now and Hosted Button payments use PayPal IPN. The receiver email must match the primary PayPal business email.
+                    </p>
                   </article>
                   <article>
                     <h3>Credit card / WorldFirst</h3>
